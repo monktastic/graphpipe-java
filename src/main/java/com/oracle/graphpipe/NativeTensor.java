@@ -29,45 +29,73 @@ public class NativeTensor {
     12. String,
     */
     
-    int type;
-    List<Integer> shape;
-    List<String>  stringData;
+    private int type;
+    private List<Integer> shape;
+    private List<String>  stringData;
     ByteBuffer data;
     
-    static class NumType {
+    abstract static class NumType {
         int type;
         int size;
-        PutNumber pn;
-        
-        NumType(int type, int size, PutNumber pn) {
+       
+        NumType(int type, int size) {
             this.type = type;
             this.size = size;
-            this.pn = pn;
+        }
+
+        void putAndAdvance(ByteBuffer bb, Object ary) {
+            put(bb, ary);
+            advance(bb, ary);
+        }
+        abstract void put(ByteBuffer bb, Object ary);
+        void advance(ByteBuffer bb, Object ary) {
+            bb.position(bb.position() + Array.getLength(ary) * this.size);
         }
     }
+    
+    private static NumType byteNt = new NumType(2, 1) {
+        void put(ByteBuffer bb, Object ary) {
+           bb.put((byte[])ary); 
+        }
+        void advance(ByteBuffer bb, Object ary) {
+            // No-op because put() already advances.
+        }
+    };
+    private static NumType shortNt = new NumType(4, 2) {
+        void put(ByteBuffer bb, Object ary) {
+            bb.asShortBuffer().put((short[])ary);
+        }
+    };
+    private static NumType intNt = new NumType(6, 4) {
+        void put(ByteBuffer bb, Object ary) {
+            bb.asIntBuffer().put((int[])ary);
+        }
+    };
+    private static NumType longNt = new NumType(8, 8) {
+        void put(ByteBuffer bb, Object ary) {
+            bb.asLongBuffer().put((long[])ary);
+        }
+    };
+    private static NumType floatNt = new NumType(10, 8) {
+        void put(ByteBuffer bb, Object ary) {
+            bb.asFloatBuffer().put((float[])ary);
+        }
+    };
+    private static NumType doubleNt = new NumType(11, 16) {
+        void put(ByteBuffer bb, Object ary) {
+            bb.asDoubleBuffer().put((double[])ary);
+        }
+    };
 
-    @FunctionalInterface
-    interface PutNumber<T extends Number> {
-        ByteBuffer apply(ByteBuffer bb, T number);
-    }
-   
-    static Map<Class<? extends Number>, NumType> typeMap;
+    private static Map<Class<? extends Number>, NumType> typeMap;
     static {
-        // TODO(aprasad): Replace with method reference.
-        PutNumber<Byte> pb = (bb, b) -> bb.put(b);
-        PutNumber<Short> ps = (bb, s) -> bb.putShort(s);
-        PutNumber<Integer> pi = (bb, i) -> bb.putInt(i);
-        PutNumber<Long> pl = (bb, l) -> bb.putLong(l);
-        PutNumber<Float> pf = (bb, f) -> bb.putFloat(f);
-        PutNumber<Double> pd = (bb, d) -> bb.putDouble(d);
-        
         typeMap = new HashMap<>();
-        typeMap.put(Byte.class, new NumType(2, 1, pb));
-        typeMap.put(Short.class, new NumType(4, 2, ps));
-        typeMap.put(Integer.class, new NumType(6, 4, pi));
-        typeMap.put(Long.class, new NumType(8, 8, pl));
-        typeMap.put(Float.class, new NumType(10, 8, pf));
-        typeMap.put(Double.class, new NumType(11, 16, pd));
+        typeMap.put(Byte.class, byteNt);
+        typeMap.put(Short.class, shortNt);
+        typeMap.put(Integer.class, intNt);
+        typeMap.put(Long.class, longNt);
+        typeMap.put(Float.class, floatNt);
+        typeMap.put(Double.class, doubleNt);
     }
    
     public int Build(FlatBufferBuilder b) {
@@ -88,7 +116,7 @@ public class NativeTensor {
             if (Array.getLength(ary) == 0) {
                throw new IllegalArgumentException("Array is empty");
             }
-           ary = Array.get(ary, 0);
+            ary = Array.get(ary, 0);
         }
         return ary.getClass();
     }
@@ -117,29 +145,22 @@ public class NativeTensor {
         this.data = ByteBuffer.allocate(size * nt.size);
         this.data.order(ByteOrder.LITTLE_ENDIAN);
         this.type = nt.type;
-        fillData(ary, nt);
+        fillData(ary, 0, nt);
     }
     
-    private void fillData(Object ary, NumType nt) {
-        int nDims = getDims(ary);
-        _fillData(ary, 0, nt.pn);
-    }
-    
-    private void _fillData(Object ary, int dim, PutNumber pn) {
+    private void fillData(Object ary, int dim, NumType nt) {
         if (this.shape.get(dim) != Array.getLength(ary)) {
             throw new IllegalArgumentException("Array is not rectangular");
         }
 
         if (dim == this.shape.size() - 1) {
-            for (int i = 0; i < Array.getLength(ary); i++) {
-                Number n = (Number)Array.get(ary, i);
-                pn.apply(data, n);
-            }
+            // The innermost dimension can be copied directly.
+            nt.putAndAdvance(data, ary);
             return;
         }
 
         for (int i = 0; i < this.shape.get(dim); i++) {
-            _fillData(Array.get(ary, i), dim + 1, pn);
+            fillData(Array.get(ary, i), dim + 1, nt);
         }
     }
 
