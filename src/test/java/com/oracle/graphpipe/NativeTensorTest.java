@@ -1,8 +1,11 @@
 package com.oracle.graphpipe;
 
+import com.oracle.graphpipefb.Tensor;
+import com.oracle.graphpipefb.Type;
 import junit.framework.TestCase;
 import org.junit.Assert;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class NativeTensorTest extends TestCase {
@@ -58,17 +61,17 @@ public class NativeTensorTest extends TestCase {
         NativeTensor nt = new NativeTensor(ary);
         assertEquals(6, nt.data.array().length);
     }
-    
+
+    short rank3Ary[][][] = {
+            {{0x0001, 0x0020}, {0x0300, 0x4000}},
+            {{0x000A, 0x00B0}, {0x0C00, (short)0xD000}}};
+    byte[] rank3AryData = {
+            0x01, 0x00, 0x20, 0x00, 0x00, 0x03, 0x00, 0x40,
+            0x0A, 0x00, (byte)0xB0, 0x00, 0x00, 0x0C, 0x00, (byte)0xD0,
+    };
     public void testCtorRank3() {
-        short ary[][][] = {
-                {{0x0001, 0x0020}, {0x0300, 0x4000}}, 
-                {{0x000A, 0x00B0}, {0x0C00, (short)0xD000}}};
-        NativeTensor nt = new NativeTensor(ary);
-        byte[] expected = {
-                0x01, 0x00, 0x20, 0x00, 0x00, 0x03, 0x00, 0x40,
-                0x0A, 0x00, (byte)0xB0, 0x00, 0x00, 0x0C, 0x00, (byte)0xD0,
-        };
-        Assert.assertArrayEquals(expected, nt.data.array());
+        NativeTensor nt = new NativeTensor(rank3Ary);
+        Assert.assertArrayEquals(rank3AryData, nt.data.array());
     }
     
     public void testCtorStringData() {
@@ -84,5 +87,45 @@ public class NativeTensorTest extends TestCase {
             fail("Shouldn't be able to create a NativeTensor of StringBuffers");
         } catch (IllegalArgumentException e) {
         }
+    }
+    
+    public void testMakeTensorByteBuffer_Numeric() {
+        NativeTensor nt = new NativeTensor(rank3Ary);
+        ByteBuffer bb = nt.makeTensorByteBuffer();
+        Tensor t = Tensor.getRootAsTensor(bb);
+
+        // Fetch the byte data.
+        byte[] data = new byte[t.dataAsByteBuffer().remaining()];
+        t.dataAsByteBuffer().get(data);
+        Assert.assertArrayEquals(rank3AryData, data);
+     
+        // Compare shapes.
+        assertEquals(rank3Ary.length, t.shape(0));
+        assertEquals(rank3Ary[0].length, t.shape(1));
+        assertEquals(rank3Ary[0][0].length, t.shape(2));
+       
+        // Short is type 4.
+        assertEquals(4, t.type());
+    }
+
+    public void testMakeTensorByteBuffer_String() {
+        String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
+        NativeTensor nt = new NativeTensor(ary);
+        ByteBuffer bb = nt.makeTensorByteBuffer();
+        Tensor t = Tensor.getRootAsTensor(bb);
+
+        // Compare strings.
+        assertEquals(4, t.stringValLength());
+        assertEquals(ary[0][0], t.stringVal(0));
+        assertEquals(ary[0][1], t.stringVal(1));
+        assertEquals(ary[1][0], t.stringVal(2));
+        assertEquals(ary[1][1], t.stringVal(3));
+
+        // Compare shapes.
+        assertEquals(ary.length, t.shape(0));
+        assertEquals(ary[0].length, t.shape(1));
+
+        // Compare type.
+        assertEquals(Type.String, t.type());
     }
 }

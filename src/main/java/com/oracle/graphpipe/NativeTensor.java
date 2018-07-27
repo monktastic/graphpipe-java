@@ -1,11 +1,16 @@
 package com.oracle.graphpipe;
 
 import com.google.flatbuffers.FlatBufferBuilder;
+import com.oracle.graphpipefb.Tensor;
+import com.oracle.graphpipefb.Type;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class NativeTensor {
     /*
@@ -29,6 +34,7 @@ public class NativeTensor {
     private int elemCount = 1;
     List<String> stringData;
     ByteBuffer data;
+    private NumType numType;
     
     abstract static class NumType {
         int type;
@@ -49,7 +55,7 @@ public class NativeTensor {
         }
     }
     
-    private static NumType byteNt = new NumType(2, 1) {
+    private static NumType byteNt = new NumType(Type.Int8, 1) {
         void put(ByteBuffer bb, Object ary) {
            bb.put((byte[])ary); 
         }
@@ -57,27 +63,27 @@ public class NativeTensor {
             // No-op because put() already advances.
         }
     };
-    private static NumType shortNt = new NumType(4, 2) {
+    private static NumType shortNt = new NumType(Type.Int16, 2) {
         void put(ByteBuffer bb, Object ary) {
             bb.asShortBuffer().put((short[])ary);
         }
     };
-    private static NumType intNt = new NumType(6, 4) {
+    private static NumType intNt = new NumType(Type.Int32, 4) {
         void put(ByteBuffer bb, Object ary) {
             bb.asIntBuffer().put((int[])ary);
         }
     };
-    private static NumType longNt = new NumType(8, 8) {
+    private static NumType longNt = new NumType(Type.Int32, 8) {
         void put(ByteBuffer bb, Object ary) {
             bb.asLongBuffer().put((long[])ary);
         }
     };
-    private static NumType floatNt = new NumType(10, 8) {
+    private static NumType floatNt = new NumType(Type.Float32, 8) {
         void put(ByteBuffer bb, Object ary) {
             bb.asFloatBuffer().put((float[])ary);
         }
     };
-    private static NumType doubleNt = new NumType(11, 16) {
+    private static NumType doubleNt = new NumType(Type.Float64, 16) {
         void put(ByteBuffer bb, Object ary) {
             bb.asDoubleBuffer().put((double[])ary);
         }
@@ -93,9 +99,49 @@ public class NativeTensor {
         typeMap.put(Float.class, floatNt);
         typeMap.put(Double.class, doubleNt);
     }
-   
+    
+    public ByteBuffer makeTensorByteBuffer() {
+        FlatBufferBuilder b = new FlatBufferBuilder(1024);
+        int offset = this.Build(b);
+        b.finish(offset);
+        return b.dataBuffer();
+    }
+    
+    private int BuildNumeric(FlatBufferBuilder b) {
+        long[] shapeArray = this.shape.stream().mapToLong(i->i).toArray();
+        int shapeOffset = Tensor.createShapeVector(b, shapeArray);
+        int dataOffset = Tensor.createDataVector(b, this.data.array());
+
+        Tensor.startTensor(b);
+        Tensor.addData(b, dataOffset);
+        Tensor.addShape(b, shapeOffset);
+        Tensor.addType(b, this.numType.type);
+        return Tensor.endTensor(b);
+    }
+    
+    private int BuildString(FlatBufferBuilder b) {
+        long[] shapeArray = this.shape.stream().mapToLong(i->i).toArray();
+        int shapeOffset = Tensor.createShapeVector(b, shapeArray);
+      
+        int[] stringOffsets = new int[stringData.size()];
+        for (int i = 0; i < stringData.size(); i++) {
+            stringOffsets[i] = b.createString(stringData.get(i));
+        }
+        int stringOffset = Tensor.createStringValVector(b, stringOffsets);
+        
+        Tensor.startTensor(b);
+        Tensor.addStringVal(b, stringOffset);
+        Tensor.addShape(b, shapeOffset);
+        Tensor.addType(b, Type.String);
+        return Tensor.endTensor(b);
+    }
+    
     public int Build(FlatBufferBuilder b) {
-        return 0;
+        if (numType != null) {
+            return BuildNumeric(b);
+        } else {
+            return BuildString(b);
+        }
     }
    
     private static Class<?> getAryType(Object ary) {
@@ -120,7 +166,8 @@ public class NativeTensor {
         if (oClass == String.class) {
             genStringTensor(ary);
         } else if (Number.class.isAssignableFrom(oClass)) {
-            genNumericTensor(ary, typeMap.get(oClass));
+            this.numType = typeMap.get(oClass);
+            genNumericTensor(ary);
         } else {
             throw new IllegalArgumentException(
                     "Cannot convert type " + oClass.getSimpleName());
@@ -147,25 +194,25 @@ public class NativeTensor {
         }
     }
 
-    private void genNumericTensor(Object ary, NumType nt) {
-        this.data = ByteBuffer.allocate(this.elemCount * nt.size)
+    private void genNumericTensor(Object ary) {
+        this.data = ByteBuffer.allocate(this.elemCount * this.numType.size)
                 .order(ByteOrder.LITTLE_ENDIAN);
-        fillNumericData(ary, 0, nt);
+        fillNumericData(ary, 0);
     }
     
-    private void fillNumericData(Object ary, int dim, NumType nt) {
+    private void fillNumericData(Object ary, int dim) {
         if (this.shape.get(dim) != Array.getLength(ary)) {
             throw new IllegalArgumentException("Array is not rectangular");
         }
 
         if (dim == this.shape.size() - 1) {
             // The innermost dimension can be copied directly.
-            nt.putAndAdvance(data, ary);
+            this.numType.putAndAdvance(data, ary);
             return;
         }
 
         for (int i = 0; i < this.shape.get(dim); i++) {
-            fillNumericData(Array.get(ary, i), dim + 1, nt);
+            fillNumericData(Array.get(ary, i), dim + 1);
         }
     }
 
