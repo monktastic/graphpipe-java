@@ -7,10 +7,7 @@ import com.oracle.graphpipefb.Type;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class NativeTensor {
     /*
@@ -30,7 +27,7 @@ public class NativeTensor {
     12. String,
     */
     
-    private List<Integer> shape = new ArrayList<>();
+    List<Integer> shape = new ArrayList<>();
     private int elemCount = 1;
     List<String> stringData;
     ByteBuffer data;
@@ -172,6 +169,35 @@ public class NativeTensor {
             throw new IllegalArgumentException(
                     "Cannot convert type " + oClass.getSimpleName());
         }
+    }
+    
+    private void initFromFlatArrayNumeric(
+            Object ary, int[] shape, Class<? extends Number> clazz) {
+        for (int s : shape) {
+            this.shape.add(s);
+            this.elemCount *= s;
+        }
+        this.numType = typeMap.get(clazz);
+        this.data = ByteBuffer
+                .allocate(this.elemCount * this.numType.size)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        this.numType.put(this.data, ary);
+    }
+
+    public NativeTensor(short[] ary, int[] shape) {
+        initFromFlatArrayNumeric(ary, shape, Short.class);
+    }
+    
+    public NativeTensor(int[] ary, int[] shape) {
+        initFromFlatArrayNumeric(ary, shape, Integer.class);
+    }
+    
+    public NativeTensor(float[] ary, int[] shape) {
+        initFromFlatArrayNumeric(ary, shape, Float.class);
+    }
+    
+    public NativeTensor(double[] ary, int[] shape) {
+        initFromFlatArrayNumeric(ary, shape, Double.class);
     }
     
     private void genStringTensor(Object ary) {

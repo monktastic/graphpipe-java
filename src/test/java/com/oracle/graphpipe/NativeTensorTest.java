@@ -64,16 +64,45 @@ public class NativeTensorTest extends TestCase {
 
     short rank3Ary[][][] = {
             {{0x0001, 0x0020}, {0x0300, 0x4000}},
-            {{0x000A, 0x00B0}, {0x0C00, (short)0xD000}}};
+            {{0x000A, 0x00B0}, {0x0C00, (short)0xD000}}
+    };
+    // rank3Ary in little-endian order.
     byte[] rank3AryData = {
             0x01, 0x00, 0x20, 0x00, 0x00, 0x03, 0x00, 0x40,
             0x0A, 0x00, (byte)0xB0, 0x00, 0x00, 0x0C, 0x00, (byte)0xD0,
     };
+    short rank3AryFlat[] = {
+            0x0001, 0x0020, 0x0300, 0x4000,
+            0x000A, 0x00B0, 0x0C00, (short)0xD000
+    };
+
     public void testCtorRank3() {
         NativeTensor nt = new NativeTensor(rank3Ary);
         Assert.assertArrayEquals(rank3AryData, nt.data.array());
     }
     
+    public void testCtorFlat() {
+        int[] shape = {rank3Ary.length, rank3Ary[0].length, rank3Ary[0][0].length};
+        
+        NativeTensor nt1 = new NativeTensor(rank3AryFlat, shape);
+        Tensor t1 = Tensor.getRootAsTensor(nt1.makeTensorByteBuffer());
+        
+        NativeTensor nt2 = new NativeTensor(rank3Ary);
+        Tensor t2 = Tensor.getRootAsTensor(nt2.makeTensorByteBuffer());
+        
+        assertNumericTensorsEqual(t1, t2);
+    }
+    
+    private void assertNumericTensorsEqual(Tensor t1, Tensor t2) {
+        assertEquals(t1.type(), t2.type());
+        Assert.assertArrayEquals(
+                t1.shapeAsByteBuffer().array(), 
+                t2.shapeAsByteBuffer().array());
+        Assert.assertArrayEquals(
+                t1.dataAsByteBuffer().array(),
+                t2.dataAsByteBuffer().array());
+    }
+
     public void testCtorStringData() {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
         NativeTensor nt = new NativeTensor(ary);
