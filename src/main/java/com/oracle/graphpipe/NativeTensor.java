@@ -25,8 +25,9 @@ public class NativeTensor {
     12. String,
     */
     
-    private List<Integer> shape;
-    List<String>  stringData;
+    private List<Integer> shape = new ArrayList<>();
+    private int elemCount = 1;
+    List<String> stringData;
     ByteBuffer data;
     
     abstract static class NumType {
@@ -97,16 +98,12 @@ public class NativeTensor {
         return 0;
     }
    
-    private static int getDims(Object ary) {
-        return 1 + ary.getClass().getName().lastIndexOf('[');
-    }
-    
     private static Class<?> getAryType(Object ary) {
-        int nDims = getDims(ary);
-        for (int i = 0; i < nDims; i++) {
-            ary = Array.get(ary, 0);
+        if (ary.getClass().isArray()) {
+            return getAryType(Array.get(ary, 0));
+        } else {
+            return ary.getClass();
         }
-        return ary.getClass();
     }
 
     /**
@@ -119,7 +116,7 @@ public class NativeTensor {
             throw new IllegalArgumentException("Not an array");
         }
         Class<?> oClass = getAryType(ary);
-        this.shape = getShape(ary);
+        fillShape(ary);
         if (oClass == String.class) {
             genStringTensor(ary);
         } else if (Number.class.isAssignableFrom(oClass)) {
@@ -130,12 +127,8 @@ public class NativeTensor {
         }
     }
     
-    private int elemtCount() {
-        return this.shape.stream().reduce(1, (a, b) -> a * b);
-    }
-
     private void genStringTensor(Object ary) {
-        this.stringData = new ArrayList<>(elemtCount());
+        this.stringData = new ArrayList<>(this.elemCount);
         fillStringData(ary, 0);
     }
 
@@ -155,7 +148,7 @@ public class NativeTensor {
     }
 
     private void genNumericTensor(Object ary, NumType nt) {
-        this.data = ByteBuffer.allocate(elemtCount() * nt.size)
+        this.data = ByteBuffer.allocate(this.elemCount * nt.size)
                 .order(ByteOrder.LITTLE_ENDIAN);
         fillNumericData(ary, 0, nt);
     }
@@ -176,16 +169,12 @@ public class NativeTensor {
         }
     }
 
-    /*
-     * Gets the shape of ary, which is assumed to be a rectangular array.
-     */
-    static List<Integer> getShape(Object ary) {
-        int nDims = getDims(ary);
-        List<Integer> shape = new ArrayList<Integer>(nDims);
-        for (int i = 0; i < nDims; i++) {
-            shape.add(Array.getLength(ary));
-            ary = Array.get(ary, 0);
+    private void fillShape(Object ary) {
+        if (ary.getClass().isArray()) {
+            int length = elemCount;
+            this.shape.add(length);
+            this.elemCount *= length;
+            fillShape(Array.get(ary, 0));
         }
-        return shape;
     }
 }
