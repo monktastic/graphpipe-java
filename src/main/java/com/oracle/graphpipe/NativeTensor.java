@@ -1,15 +1,11 @@
 package com.oracle.graphpipe;
 
 import com.google.flatbuffers.FlatBufferBuilder;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class NativeTensor {
     /*
@@ -29,9 +25,8 @@ public class NativeTensor {
     12. String,
     */
     
-    private int type;
     private List<Integer> shape;
-    private List<String>  stringData;
+    List<String>  stringData;
     ByteBuffer data;
     
     abstract static class NumType {
@@ -107,48 +102,65 @@ public class NativeTensor {
     }
     
     private static Class<?> getAryType(Object ary) {
-        if (!ary.getClass().isArray()) {
-            throw new IllegalArgumentException("Not an array");
-        }
         int nDims = getDims(ary);
         for (int i = 0; i < nDims; i++) {
-            // The final dimension may be empty.
-            if (Array.getLength(ary) == 0) {
-               throw new IllegalArgumentException("Array is empty");
-            }
             ary = Array.get(ary, 0);
         }
         return ary.getClass();
     }
 
-    // Note that we cannot accept Object[] because int[] (e.g.) does not
-    // match.
-    public NativeTensor(Object o) {
-        if (!o.getClass().isArray()) {
+    /**
+     * @param ary An (arbitrary dimension) array of Numbers or Strings.
+     * @throws ArrayIndexOutOfBoundsException If the final dimension contains
+     * an empty array.
+     */
+    public NativeTensor(Object ary) throws ArrayIndexOutOfBoundsException {
+        if (!ary.getClass().isArray()) {
             throw new IllegalArgumentException("Not an array");
         }
-        Class<?> oClass = getAryType(o);
+        Class<?> oClass = getAryType(ary);
+        this.shape = getShape(ary);
         if (oClass == String.class) {
-            throw new NotImplementedException();
+            genStringTensor(ary);
         } else if (Number.class.isAssignableFrom(oClass)) {
-            genNumericTensor(o, (Class<Number>)oClass);
+            genNumericTensor(ary, typeMap.get(oClass));
         } else {
             throw new IllegalArgumentException(
                     "Cannot convert type " + oClass.getSimpleName());
         }
     }
     
-    private void genNumericTensor(Object ary, Class<Number> oClass) {
-        this.shape = getShape(ary);
-        int size = this.shape.stream().reduce(1, (a, b) -> a * b);
-        NumType nt = typeMap.get(oClass);
-        this.data = ByteBuffer.allocate(size * nt.size);
-        this.data.order(ByteOrder.LITTLE_ENDIAN);
-        this.type = nt.type;
-        fillData(ary, 0, nt);
+    private int elemtCount() {
+        return this.shape.stream().reduce(1, (a, b) -> a * b);
+    }
+
+    private void genStringTensor(Object ary) {
+        this.stringData = new ArrayList<>(elemtCount());
+        fillStringData(ary, 0);
+    }
+
+    private void fillStringData(Object ary, int dim) {
+        if (this.shape.get(dim) != Array.getLength(ary)) {
+            throw new IllegalArgumentException("Array is not rectangular");
+        }
+
+        for (int i = 0; i < this.shape.get(dim); i++) {
+            Object child = Array.get(ary, i);
+            if (child.getClass().isArray()) {
+                fillStringData(child, dim + 1);
+            } else {
+                this.stringData.add((String)child);
+            }
+        }
+    }
+
+    private void genNumericTensor(Object ary, NumType nt) {
+        this.data = ByteBuffer.allocate(elemtCount() * nt.size)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        fillNumericData(ary, 0, nt);
     }
     
-    private void fillData(Object ary, int dim, NumType nt) {
+    private void fillNumericData(Object ary, int dim, NumType nt) {
         if (this.shape.get(dim) != Array.getLength(ary)) {
             throw new IllegalArgumentException("Array is not rectangular");
         }
@@ -160,7 +172,7 @@ public class NativeTensor {
         }
 
         for (int i = 0; i < this.shape.get(dim); i++) {
-            fillData(Array.get(ary, i), dim + 1, nt);
+            fillNumericData(Array.get(ary, i), dim + 1, nt);
         }
     }
 

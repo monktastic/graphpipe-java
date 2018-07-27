@@ -2,7 +2,6 @@ package com.oracle.graphpipe;
 
 import junit.framework.TestCase;
 import org.junit.Assert;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -60,8 +59,7 @@ public class NativeTensorTest extends TestCase {
             int ary[][] = {{}, {}};
             new NativeTensor(ary);
             fail("Should have failed");
-        } catch (IllegalArgumentException e) {
-            assertTrue(e.toString().contains("empty"));
+        } catch (ArrayIndexOutOfBoundsException e) {
         }
     }
     
@@ -89,12 +87,9 @@ public class NativeTensorTest extends TestCase {
     }
     
     public void testCtorStringData() {
-        String ary[] = {"abc"};
-        try {
-            new NativeTensor(ary);
-            fail("Haven't implemented strings yet");
-        } catch (NotImplementedException e) {
-        }
+        String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
+        NativeTensor nt = new NativeTensor(ary);
+        assertEquals(Arrays.asList("a", "bc", "def", "ghij"), nt.stringData);
     }
     
     public void testCtorBadType() {
