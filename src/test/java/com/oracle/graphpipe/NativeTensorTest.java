@@ -4,23 +4,8 @@ import junit.framework.TestCase;
 import org.junit.Assert;
 
 import java.util.Arrays;
-import java.util.List;
 
 public class NativeTensorTest extends TestCase {
-    public void testGetShapeRank2() {
-        int ary[][] = {{1, 2}, {3, 4}, {6, 7}};
-        List<Integer> shape = NativeTensor.getShape(ary);
-        assertEquals(Arrays.asList(3, 2), shape);
-    }
-    
-    public void testGetShapeRank3() {
-        int ary[][][] = {{{0, 1}, {2, 3}, {4, 5}}, {{6, 7}, {8, 9}, {10, 11}}};
-        List<Integer> shape = NativeTensor.getShape(ary);
-        assertEquals(Arrays.asList(2, 3, 2), shape);
-    }
-   
-
-
     public void testCtorDiffDims() {
         try {
             // Sub-dims differ ([1] and [2]).
