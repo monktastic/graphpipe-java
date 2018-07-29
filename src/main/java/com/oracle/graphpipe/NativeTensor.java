@@ -7,7 +7,10 @@ import com.oracle.graphpipefb.Type;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class NativeTensor {
     /*
@@ -27,7 +30,7 @@ public class NativeTensor {
     12. String,
     */
     
-    List<Integer> shape = new ArrayList<>();
+    List<Long> shape = new ArrayList<>();
     private int elemCount = 1;
     List<String> stringData;
     ByteBuffer data;
@@ -75,12 +78,12 @@ public class NativeTensor {
             bb.asLongBuffer().put((long[])ary);
         }
     };
-    private static NumType floatNt = new NumType(Type.Float32, 8) {
+    private static NumType floatNt = new NumType(Type.Float32, 4) {
         void put(ByteBuffer bb, Object ary) {
             bb.asFloatBuffer().put((float[])ary);
         }
     };
-    private static NumType doubleNt = new NumType(Type.Float64, 16) {
+    private static NumType doubleNt = new NumType(Type.Float64, 8) {
         void put(ByteBuffer bb, Object ary) {
             bb.asDoubleBuffer().put((double[])ary);
         }
@@ -110,9 +113,9 @@ public class NativeTensor {
         int dataOffset = Tensor.createDataVector(b, this.data.array());
 
         Tensor.startTensor(b);
-        Tensor.addData(b, dataOffset);
         Tensor.addShape(b, shapeOffset);
         Tensor.addType(b, this.numType.type);
+        Tensor.addData(b, dataOffset);
         return Tensor.endTensor(b);
     }
     
@@ -127,9 +130,9 @@ public class NativeTensor {
         int stringOffset = Tensor.createStringValVector(b, stringOffsets);
         
         Tensor.startTensor(b);
-        Tensor.addStringVal(b, stringOffset);
         Tensor.addShape(b, shapeOffset);
         Tensor.addType(b, Type.String);
+        Tensor.addStringVal(b, stringOffset);
         return Tensor.endTensor(b);
     }
     
@@ -172,8 +175,8 @@ public class NativeTensor {
     }
     
     private void initFromFlatArrayNumeric(
-            Object ary, int[] shape, Class<? extends Number> clazz) {
-        for (int s : shape) {
+            Object ary, long[] shape, Class<? extends Number> clazz) {
+        for (long s : shape) {
             this.shape.add(s);
             this.elemCount *= s;
         }
@@ -184,19 +187,19 @@ public class NativeTensor {
         this.numType.put(this.data, ary);
     }
 
-    public NativeTensor(short[] ary, int[] shape) {
+    public NativeTensor(short[] ary, long[] shape) {
         initFromFlatArrayNumeric(ary, shape, Short.class);
     }
     
-    public NativeTensor(int[] ary, int[] shape) {
+    public NativeTensor(int[] ary, long[] shape) {
         initFromFlatArrayNumeric(ary, shape, Integer.class);
     }
     
-    public NativeTensor(float[] ary, int[] shape) {
+    public NativeTensor(float[] ary, long[] shape) {
         initFromFlatArrayNumeric(ary, shape, Float.class);
     }
     
-    public NativeTensor(double[] ary, int[] shape) {
+    public NativeTensor(double[] ary, long[] shape) {
         initFromFlatArrayNumeric(ary, shape, Double.class);
     }
     
@@ -244,7 +247,7 @@ public class NativeTensor {
 
     private void fillShape(Object ary) {
         if (ary.getClass().isArray()) {
-            int length = Array.getLength(ary);
+            long length = Array.getLength(ary);
             this.shape.add(length);
             this.elemCount *= length;
             fillShape(Array.get(ary, 0));

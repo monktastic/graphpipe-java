@@ -82,7 +82,7 @@ public class NativeTensorTest extends TestCase {
     }
     
     public void testCtorFlat() {
-        int[] shape = {rank3Ary.length, rank3Ary[0].length, rank3Ary[0][0].length};
+        long[] shape = {rank3Ary.length, rank3Ary[0].length, rank3Ary[0][0].length};
         
         NativeTensor nt1 = new NativeTensor(rank3AryFlat, shape);
         Tensor t1 = Tensor.getRootAsTensor(nt1.makeTensorByteBuffer());
@@ -124,8 +124,9 @@ public class NativeTensorTest extends TestCase {
         Tensor t = Tensor.getRootAsTensor(bb);
 
         // Fetch the byte data.
-        byte[] data = new byte[t.dataAsByteBuffer().remaining()];
-        t.dataAsByteBuffer().get(data);
+        ByteBuffer bb2 = t.dataAsByteBuffer();
+        byte[] data = new byte[bb2.remaining()];
+        bb2.get(data);
         Assert.assertArrayEquals(rank3AryData, data);
      
         // Compare shapes.
