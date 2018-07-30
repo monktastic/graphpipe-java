@@ -5,7 +5,9 @@ import com.oracle.graphpipefb.Request;
 import com.oracle.graphpipefb.Tensor;
 import com.oracle.graphpipefb.Type;
 import junit.framework.TestCase;
+import org.nd4j.linalg.api.ndarray.INDArray;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,5 +46,16 @@ public class RemoteTest extends TestCase {
             data.add(t.data(i));
         }
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), data);
+    }
+   
+    // TODO: Currently requires Aditya's modified RemoteModelWithGraphPipe.ipynb
+    public void testRemote() throws IOException {
+        float[][][] input = {{{1, 2, 3}, {4, 5, 6}}};
+        
+        INDArray ndArr = Remote.Execute("http://localhost:9000", new NativeTensor(input));
+
+        assertEquals((1 + 2 + 3) * 2.0, ndArr.getDouble(0, 0, 0));
+        assertEquals((4 + 5 + 6) * 2.0, ndArr.getDouble(0, 1, 0));
+        assertEquals(2, ndArr.length());
     }
 }

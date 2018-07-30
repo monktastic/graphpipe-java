@@ -3,14 +3,13 @@ package com.oracle.graphpipe;
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.oracle.graphpipefb.Tensor;
 import com.oracle.graphpipefb.Type;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class NativeTensor {
     /*
@@ -53,6 +52,10 @@ public class NativeTensor {
         void advance(ByteBuffer bb, Object ary) {
             bb.position(bb.position() + Array.getLength(ary) * this.size);
         }
+
+        INDArray getINDArray(Tensor t) {
+            throw new UnsupportedOperationException();
+        }
     }
     
     private static NumType byteNt = new NumType(Type.Int8, 1) {
@@ -73,7 +76,7 @@ public class NativeTensor {
             bb.asIntBuffer().put((int[])ary);
         }
     };
-    private static NumType longNt = new NumType(Type.Int32, 8) {
+    private static NumType longNt = new NumType(Type.Int64, 8) {
         void put(ByteBuffer bb, Object ary) {
             bb.asLongBuffer().put((long[])ary);
         }
@@ -82,22 +85,53 @@ public class NativeTensor {
         void put(ByteBuffer bb, Object ary) {
             bb.asFloatBuffer().put((float[])ary);
         }
+        INDArray getINDArray(Tensor t) {
+            float[] floats = new float[t.dataLength() / size];
+            t.dataAsByteBuffer().asFloatBuffer().get(floats);
+            return Nd4j.create(floats, getShape(t));
+        }
     };
     private static NumType doubleNt = new NumType(Type.Float64, 8) {
         void put(ByteBuffer bb, Object ary) {
             bb.asDoubleBuffer().put((double[])ary);
         }
+        INDArray getINDArray(Tensor t) {
+            double[] doubles = new double[t.dataLength() / size];
+            t.dataAsByteBuffer().asDoubleBuffer().get(doubles);
+            return Nd4j.create(doubles, getShape(t));
+        }
     };
 
-    private static Map<Class<? extends Number>, NumType> typeMap;
+    private static Map<Class<? extends Number>, NumType> numTypeByClass;
+    private static Map<Integer, NumType> numTypeByType;
+    
     static {
-        typeMap = new HashMap<>();
-        typeMap.put(Byte.class, byteNt);
-        typeMap.put(Short.class, shortNt);
-        typeMap.put(Integer.class, intNt);
-        typeMap.put(Long.class, longNt);
-        typeMap.put(Float.class, floatNt);
-        typeMap.put(Double.class, doubleNt);
+        numTypeByClass = new HashMap<>();
+        numTypeByClass.put(Byte.class, byteNt);
+        numTypeByClass.put(Short.class, shortNt);
+        numTypeByClass.put(Integer.class, intNt);
+        numTypeByClass.put(Long.class, longNt);
+        numTypeByClass.put(Float.class, floatNt);
+        numTypeByClass.put(Double.class, doubleNt);
+        
+        numTypeByType = new HashMap<>();
+        for (NumType nt : numTypeByClass.values()) {
+            numTypeByType.put(nt.type, nt);
+        }
+    }
+    
+    static int[] getShape(Tensor t) {
+        List<Integer> shape = new ArrayList<>(t.shapeLength());
+        for (int i = 0; i < t.shapeLength(); i++) {
+            // TODO: If exceeds int range, throw.
+            shape.add((int)t.shape(i));
+        }
+        return shape.stream().mapToInt(i->i).toArray();
+    }
+   
+    public static INDArray fromTensor(Tensor t) {
+        NumType nt = numTypeByType.get(t.type());
+        return nt.getINDArray(t);
     }
     
     public ByteBuffer makeTensorByteBuffer() {
@@ -166,7 +200,7 @@ public class NativeTensor {
         if (oClass == String.class) {
             genStringTensor(ary);
         } else if (Number.class.isAssignableFrom(oClass)) {
-            this.numType = typeMap.get(oClass);
+            this.numType = numTypeByClass.get(oClass);
             genNumericTensor(ary);
         } else {
             throw new IllegalArgumentException(
@@ -180,7 +214,7 @@ public class NativeTensor {
             this.shape.add(s);
             this.elemCount *= s;
         }
-        this.numType = typeMap.get(clazz);
+        this.numType = numTypeByClass.get(clazz);
         this.data = ByteBuffer
                 .allocate(this.elemCount * this.numType.size)
                 .order(ByteOrder.LITTLE_ENDIAN);

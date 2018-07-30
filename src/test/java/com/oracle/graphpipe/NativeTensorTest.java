@@ -4,6 +4,7 @@ import com.oracle.graphpipefb.Tensor;
 import com.oracle.graphpipefb.Type;
 import junit.framework.TestCase;
 import org.junit.Assert;
+import org.nd4j.linalg.api.ndarray.INDArray;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -157,5 +158,24 @@ public class NativeTensorTest extends TestCase {
 
         // Compare type.
         assertEquals(Type.String, t.type());
+    }
+    
+    public void testFromTensor() {
+        double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+        NativeTensor nt = new NativeTensor(ary);
+
+        ByteBuffer bb = nt.makeTensorByteBuffer();
+        Tensor t = Tensor.getRootAsTensor(bb);
+        
+        INDArray ndArr = NativeTensor.fromTensor(t);
+        for (int i = 0; i < ary.length; i++) {
+            for (int j = 0; j < ary[i].length; j++) {
+                for (int k = 0; k < ary[i][j].length; k++) {
+                    assertEquals(ary[i][j][k], ndArr.getDouble(i, j, k));
+                    // Weirdly, the syntax for Float is:
+                    // ndArr.getFloat(new int[]{i, j, k});
+                }
+            }
+        }
     }
 }

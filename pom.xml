@@ -22,6 +22,10 @@
         </plugins>
     </build>
     
+    <properties>
+        <nd4j.version>1.0.0-alpha</nd4j.version>
+    </properties>
+    
     <dependencies>
         <dependency>
             <groupId>com.google.flatbuffers</groupId>
@@ -38,6 +42,11 @@
             <artifactId>httpclient</artifactId>
             <version>4.3.6</version>
         </dependency>
+        <dependency>
+            <groupId>org.nd4j</groupId>
+            <artifactId>nd4j-native-platform</artifactId>
+            <version>${nd4j.version}</version>
+        </dependency>        
     </dependencies>
 
 </project>
