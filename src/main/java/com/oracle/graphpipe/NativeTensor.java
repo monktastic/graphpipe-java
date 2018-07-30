@@ -53,7 +53,7 @@ public class NativeTensor {
             bb.position(bb.position() + Array.getLength(ary) * this.size);
         }
 
-        INDArray getINDArray(Tensor t) {
+        INDArray getINDArray(NativeTensor t) {
             throw new UnsupportedOperationException();
         }
     }
@@ -85,20 +85,20 @@ public class NativeTensor {
         void put(ByteBuffer bb, Object ary) {
             bb.asFloatBuffer().put((float[])ary);
         }
-        INDArray getINDArray(Tensor t) {
-            float[] floats = new float[t.dataLength() / size];
-            t.dataAsByteBuffer().asFloatBuffer().get(floats);
-            return Nd4j.create(floats, getShape(t));
+        INDArray getINDArray(NativeTensor t) {
+            float[] floats = new float[t.elemCount];
+            t.data.asFloatBuffer().get(floats);
+            return Nd4j.create(floats, shapeToIntAry(t.shape));
         }
     };
     private static NumType doubleNt = new NumType(Type.Float64, 8) {
         void put(ByteBuffer bb, Object ary) {
             bb.asDoubleBuffer().put((double[])ary);
         }
-        INDArray getINDArray(Tensor t) {
-            double[] doubles = new double[t.dataLength() / size];
-            t.dataAsByteBuffer().asDoubleBuffer().get(doubles);
-            return Nd4j.create(doubles, getShape(t));
+        INDArray getINDArray(NativeTensor t) {
+            double[] doubles = new double[t.elemCount];
+            t.data.asDoubleBuffer().get(doubles);
+            return Nd4j.create(doubles, shapeToIntAry(t.shape));
         }
     };
 
@@ -120,19 +120,23 @@ public class NativeTensor {
         }
     }
     
-    static int[] getShape(Tensor t) {
-        List<Integer> shape = new ArrayList<>(t.shapeLength());
+    static int[] shapeToIntAry(List<Long> shape) {
+        return shape.stream().mapToInt(Long::intValue).toArray();
+    }
+    
+    public NativeTensor(Tensor t) {
         for (int i = 0; i < t.shapeLength(); i++) {
-            // TODO: If exceeds int range, throw.
-            shape.add((int)t.shape(i));
+            shape.add(t.shape(i));
         }
-        return shape.stream().mapToInt(i->i).toArray();
+        this.data = t.dataAsByteBuffer();
+        this.numType = numTypeByType.get(t.type());
+        this.elemCount = t.dataLength() / this.numType.size;
     }
-   
-    public static INDArray fromTensor(Tensor t) {
-        NumType nt = numTypeByType.get(t.type());
-        return nt.getINDArray(t);
+    
+    public INDArray toINDArray() {
+        return this.numType.getINDArray(this);
     }
+    
     
     public ByteBuffer makeTensorByteBuffer() {
         FlatBufferBuilder b = new FlatBufferBuilder(1024);
@@ -219,6 +223,10 @@ public class NativeTensor {
                 .allocate(this.elemCount * this.numType.size)
                 .order(ByteOrder.LITTLE_ENDIAN);
         this.numType.put(this.data, ary);
+    }
+    
+    public NativeTensor(byte[] ary, long[] shape) {
+        initFromFlatArrayNumeric(ary, shape, Byte.class);
     }
 
     public NativeTensor(short[] ary, long[] shape) {

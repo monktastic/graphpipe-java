@@ -8,7 +8,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.nd4j.linalg.api.ndarray.INDArray;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -55,7 +54,7 @@ public class Remote {
         return b.dataBuffer();
     }
     
-    public static INDArray Execute(String uri, NativeTensor input) 
+    public static NativeTensor Execute(String uri, NativeTensor input) 
             throws IOException {
         List<NativeTensor> inputs = Collections.singletonList(input);
         List<String> inputNames = Collections.emptyList();
@@ -63,7 +62,7 @@ public class Remote {
         return ExecuteMulti(uri, inputs, inputNames, outputNames).get(0);
     }
 
-    public static INDArray Execute(
+    public static NativeTensor Execute(
             String uri, NativeTensor input, String inputName, String outputName)
             throws IOException {
         List<NativeTensor> inputs = Collections.singletonList(input);
@@ -72,7 +71,7 @@ public class Remote {
         return ExecuteMulti(uri, inputs, inputNames, outputNames).get(0);
     }
 
-    public static List<INDArray> ExecuteMulti(
+    public static List<NativeTensor> ExecuteMulti(
             String uri, List<NativeTensor> inputs,
             List<String> inputNames, List<String> outputNames)
             throws IOException {
@@ -89,16 +88,16 @@ public class Remote {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         response.getEntity().writeTo(baos);
+        
         byte[] respBytes = baos.toByteArray();
         ByteBuffer respBB = ByteBuffer.wrap(respBytes);
         InferResponse ir = InferResponse.getRootAsInferResponse(respBB);
        
-        List<INDArray> ndArys = new ArrayList<>(ir.outputTensorsLength());
+        List<NativeTensor> nTensors = new ArrayList<>(ir.outputTensorsLength());
         for (int i = 0; i < ir.outputTensorsLength(); i++) {
             Tensor t = ir.outputTensors(0);
-            ndArys.add(NativeTensor.fromTensor(t));
+            nTensors.add(new NativeTensor(t));
         }
-
-        return ndArys;
+        return nTensors;
     }
 }

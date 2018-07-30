@@ -52,8 +52,10 @@ public class RemoteTest extends TestCase {
     public void testRemote() throws IOException {
         float[][][] input = {{{1, 2, 3}, {4, 5, 6}}};
         
-        INDArray ndArr = Remote.Execute("http://localhost:9000", new NativeTensor(input));
+        NativeTensor nt = Remote.Execute("http://localhost:9000", 
+                new NativeTensor(input));
 
+        INDArray ndArr = nt.toINDArray();
         assertEquals((1 + 2 + 3) * 2.0, ndArr.getDouble(0, 0, 0));
         assertEquals((4 + 5 + 6) * 2.0, ndArr.getDouble(0, 1, 0));
         assertEquals(2, ndArr.length());

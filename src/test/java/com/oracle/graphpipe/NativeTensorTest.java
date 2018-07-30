@@ -167,7 +167,9 @@ public class NativeTensorTest extends TestCase {
         ByteBuffer bb = nt.makeTensorByteBuffer();
         Tensor t = Tensor.getRootAsTensor(bb);
         
-        INDArray ndArr = NativeTensor.fromTensor(t);
+        NativeTensor ntResp = new NativeTensor(t);
+        INDArray ndArr = ntResp.toINDArray();
+        
         for (int i = 0; i < ary.length; i++) {
             for (int j = 0; j < ary[i].length; j++) {
                 for (int k = 0; k < ary[i][j].length; k++) {
