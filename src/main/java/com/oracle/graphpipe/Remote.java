@@ -17,8 +17,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class Remote {
-    public static ByteBuffer BuildRequest(List<NativeTensor> inputs,
-                                          List<String> inputNames, List<String> outputNames) {
+    public static ByteBuffer BuildRequest(
+            String config, List<NativeTensor> inputs, List<String> inputNames, 
+            List<String> outputNames) {
         FlatBufferBuilder b = new FlatBufferBuilder(1024);
 
         int[] inputNameOffsets = new int[inputNames.size()];
@@ -39,10 +40,13 @@ public class Remote {
         }
         int tensorsOffset = InferRequest.createInputTensorsVector(b, tensorOffsets);
 
+        int configOffset = b.createString(config);
+        
         InferRequest.startInferRequest(b);
         InferRequest.addInputNames(b, inputNamesOffset);
         InferRequest.addOutputNames(b, outputNamesOffset);
         InferRequest.addInputTensors(b, tensorsOffset);
+        InferRequest.addConfig(b, configOffset);
         
         int inferRequestOffset = InferRequest.endInferRequest(b);
         Request.startRequest(b);
@@ -59,7 +63,7 @@ public class Remote {
         List<NativeTensor> inputs = Collections.singletonList(input);
         List<String> inputNames = Collections.emptyList();
         List<String> outputNames = Collections.emptyList();
-        return ExecuteMulti(uri, inputs, inputNames, outputNames).get(0);
+        return ExecuteMulti(null, uri, inputs, inputNames, outputNames).get(0);
     }
 
     public static NativeTensor Execute(
@@ -68,14 +72,24 @@ public class Remote {
         List<NativeTensor> inputs = Collections.singletonList(input);
         List<String> inputNames = Collections.singletonList(inputName);
         List<String> outputNames = Collections.singletonList(outputName);
-        return ExecuteMulti(uri, inputs, inputNames, outputNames).get(0);
+        return ExecuteMulti(null, uri, inputs, inputNames, outputNames).get(0);
+    }
+    
+    public static NativeTensor Execute(
+            String uri, NativeTensor input, String inputName, String 
+            outputName, String config)
+            throws IOException {
+        List<NativeTensor> inputs = Collections.singletonList(input);
+        List<String> inputNames = Collections.singletonList(inputName);
+        List<String> outputNames = Collections.singletonList(outputName);
+        return ExecuteMulti(config, uri, inputs, inputNames, outputNames).get(0);
     }
 
     public static List<NativeTensor> ExecuteMulti(
-            String uri, List<NativeTensor> inputs,
+            String config, String uri, List<NativeTensor> inputs,
             List<String> inputNames, List<String> outputNames)
             throws IOException {
-        ByteBuffer req = BuildRequest(inputs, inputNames, outputNames);
+        ByteBuffer req = BuildRequest(config, inputs, inputNames, outputNames);
         
         byte[] arr = new byte[req.remaining()];
         req.get(arr);

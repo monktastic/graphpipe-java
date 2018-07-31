@@ -127,16 +127,25 @@ public class NativeTensor {
     public NativeTensor(Tensor t) {
         for (int i = 0; i < t.shapeLength(); i++) {
             shape.add(t.shape(i));
+            this.elemCount *= t.shape(i);
         }
-        this.data = t.dataAsByteBuffer();
-        this.numType = numTypeByType.get(t.type());
-        this.elemCount = t.dataLength() / this.numType.size;
+        if (t.type() == Type.String) {
+            for (int i = 0; i < t.stringValLength(); i++) {
+                this.stringData.add(t.stringVal(i));
+            }
+        } else {
+            this.data = t.dataAsByteBuffer();
+            this.numType = numTypeByType.get(t.type());
+        }
     }
     
     public INDArray toINDArray() {
-        return this.numType.getINDArray(this);
+        if (this.numType != null) {
+            return this.numType.getINDArray(this);
+        } else {
+            throw new UnsupportedOperationException();
+        }
     }
-    
     
     public ByteBuffer makeTensorByteBuffer() {
         FlatBufferBuilder b = new FlatBufferBuilder(1024);

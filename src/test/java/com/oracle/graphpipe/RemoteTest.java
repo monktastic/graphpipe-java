@@ -25,7 +25,8 @@ public class RemoteTest extends TestCase {
         List<String> inputNames = Arrays.asList();
         List<String> outputNames = Arrays.asList();
        
-        ByteBuffer req = Remote.BuildRequest(inputs, inputNames, outputNames);
+        ByteBuffer req = Remote.BuildRequest(null, inputs, inputNames, 
+                outputNames);
 
         Request r = Request.getRootAsRequest(req);
         InferRequest ir = new InferRequest();
