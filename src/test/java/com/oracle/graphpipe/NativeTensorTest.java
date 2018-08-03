@@ -7,9 +7,16 @@ import org.junit.Assert;
 import org.nd4j.linalg.api.ndarray.INDArray;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 public class NativeTensorTest extends TestCase {
+    private byte[] fromByteBuffer(ByteBuffer bb) {
+        byte[] data = new byte[bb.remaining()];
+        bb.get(data);
+        return data;
+    }
+
     public void testCtorDiffDims() {
         try {
             // Sub-dims differ ([1] and [2]).
@@ -84,13 +91,8 @@ public class NativeTensorTest extends TestCase {
     
     public void testCtorFlat() {
         long[] shape = {rank3Ary.length, rank3Ary[0].length, rank3Ary[0][0].length};
-        
-        NativeTensor nt1 = new NativeTensor(rank3AryFlat, shape);
-        Tensor t1 = Tensor.getRootAsTensor(nt1.makeTensorByteBuffer());
-        
-        NativeTensor nt2 = new NativeTensor(rank3Ary);
-        Tensor t2 = Tensor.getRootAsTensor(nt2.makeTensorByteBuffer());
-        
+        Tensor t1 = new NativeTensor(rank3AryFlat, shape).toTensor();
+        Tensor t2 = new NativeTensor(rank3Ary).toTensor();
         assertNumericTensorsEqual(t1, t2);
     }
     
@@ -118,16 +120,13 @@ public class NativeTensorTest extends TestCase {
         } catch (IllegalArgumentException e) {
         }
     }
-    
-    public void testMakeTensorByteBuffer_Numeric() {
+   
+    public void testToTensor_Numeric() {
         NativeTensor nt = new NativeTensor(rank3Ary);
-        ByteBuffer bb = nt.makeTensorByteBuffer();
-        Tensor t = Tensor.getRootAsTensor(bb);
+        Tensor t = nt.toTensor();
 
         // Fetch the byte data.
-        ByteBuffer bb2 = t.dataAsByteBuffer();
-        byte[] data = new byte[bb2.remaining()];
-        bb2.get(data);
+        byte[] data = fromByteBuffer(t.dataAsByteBuffer());
         Assert.assertArrayEquals(rank3AryData, data);
      
         // Compare shapes.
@@ -139,11 +138,10 @@ public class NativeTensorTest extends TestCase {
         assertEquals(4, t.type());
     }
 
-    public void testMakeTensorByteBuffer_String() {
+    public void testToTensor_String() {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
         NativeTensor nt = new NativeTensor(ary);
-        ByteBuffer bb = nt.makeTensorByteBuffer();
-        Tensor t = Tensor.getRootAsTensor(bb);
+        Tensor t = nt.toTensor();
 
         // Compare strings.
         assertEquals(4, t.stringValLength());
@@ -163,13 +161,23 @@ public class NativeTensorTest extends TestCase {
     public void testFromTensor() {
         double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
         NativeTensor nt = new NativeTensor(ary);
+        NativeTensor nt2 = new NativeTensor(nt.toTensor());
+        
+        ByteBuffer bb = ByteBuffer.allocate(8 * 8).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 1; i <= 8; i++) {
+            bb.putDouble(i);
+        }
+        bb.rewind();
+        Assert.assertArrayEquals(fromByteBuffer(bb), fromByteBuffer(nt2.data));
+        assertEquals(Arrays.asList(2L, 2L, 2L), nt2.shape);
+        assertEquals(Double.class, nt2.numType.clazz);
+    }
+    
+    public void testToINDArray() {
+        double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+        NativeTensor nt = new NativeTensor(ary);
+        INDArray ndArr = nt.toINDArray();
 
-        ByteBuffer bb = nt.makeTensorByteBuffer();
-        Tensor t = Tensor.getRootAsTensor(bb);
-        
-        NativeTensor ntResp = new NativeTensor(t);
-        INDArray ndArr = ntResp.toINDArray();
-        
         for (int i = 0; i < ary.length; i++) {
             for (int j = 0; j < ary[i].length; j++) {
                 for (int k = 0; k < ary[i][j].length; k++) {
@@ -179,5 +187,23 @@ public class NativeTensorTest extends TestCase {
                 }
             }
         }
+        
+    }
+
+    public void testFromINDArray() {
+        double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+        NativeTensor nt = new NativeTensor(ary);
+        NativeTensor nt2 = new NativeTensor(nt.toINDArray());
+
+        // INDArray is (currently?) stored as floats even if created with
+        // Doubles.
+        ByteBuffer bb = ByteBuffer.allocate(4 * 8).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 1; i <= 8; i++) {
+            bb.putFloat(i);
+        }
+        bb.rewind();
+        assertEquals(Float.class, nt2.numType.clazz);
+        Assert.assertArrayEquals(fromByteBuffer(bb), fromByteBuffer(nt2.data));
+        assertEquals(Arrays.asList(2L, 2L, 2L), nt2.shape);
     }
 }

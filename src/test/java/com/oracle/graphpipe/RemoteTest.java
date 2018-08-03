@@ -17,7 +17,8 @@ import java.util.List;
  * Created by aditpras on 7/28/18.
  */
 public class RemoteTest extends TestCase {
-    
+    // Ctor from INDArray.
+    // Get back as native flat/multid array.
     public void testBuildRequest() {
         byte[][] input = {{1, 2, 3}, {4, 5, 6}};
         
@@ -25,8 +26,7 @@ public class RemoteTest extends TestCase {
         List<String> inputNames = Arrays.asList();
         List<String> outputNames = Arrays.asList();
        
-        ByteBuffer req = Remote.BuildRequest("", inputs, inputNames, 
-                outputNames);
+        ByteBuffer req = Remote.BuildRequest("", inputs, inputNames, outputNames);
 
         Request r = Request.getRootAsRequest(req);
         InferRequest ir = new InferRequest();
