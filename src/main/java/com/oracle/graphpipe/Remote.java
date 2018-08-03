@@ -63,7 +63,7 @@ public class Remote {
         List<NativeTensor> inputs = Collections.singletonList(input);
         List<String> inputNames = Collections.emptyList();
         List<String> outputNames = Collections.emptyList();
-        return ExecuteMulti(null, uri, inputs, inputNames, outputNames).get(0);
+        return ExecuteMulti("", uri, inputs, inputNames, outputNames).get(0);
     }
 
     public static NativeTensor Execute(
@@ -72,7 +72,7 @@ public class Remote {
         List<NativeTensor> inputs = Collections.singletonList(input);
         List<String> inputNames = Collections.singletonList(inputName);
         List<String> outputNames = Collections.singletonList(outputName);
-        return ExecuteMulti(null, uri, inputs, inputNames, outputNames).get(0);
+        return ExecuteMulti("", uri, inputs, inputNames, outputNames).get(0);
     }
     
     public static NativeTensor Execute(
