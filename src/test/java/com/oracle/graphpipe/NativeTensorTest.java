@@ -170,7 +170,7 @@ public class NativeTensorTest extends TestCase {
         bb.rewind();
         Assert.assertArrayEquals(fromByteBuffer(bb), fromByteBuffer(nt2.data));
         assertEquals(Arrays.asList(2L, 2L, 2L), nt2.shape);
-        assertEquals(Double.class, nt2.numType.clazz);
+        assertEquals(Double.class, nt2.numConv.clazz);
     }
     
     public void testToINDArray() {
@@ -202,8 +202,24 @@ public class NativeTensorTest extends TestCase {
             bb.putFloat(i);
         }
         bb.rewind();
-        assertEquals(Float.class, nt2.numType.clazz);
+        assertEquals(Float.class, nt2.numConv.clazz);
         Assert.assertArrayEquals(fromByteBuffer(bb), fromByteBuffer(nt2.data));
         assertEquals(Arrays.asList(2L, 2L, 2L), nt2.shape);
+    }
+
+    public void testToFlatArray_Numeric() {
+        double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+        NativeTensor nt = new NativeTensor(ary);
+
+        double[] ary2 = (double[])nt.toFlatArray();
+        Assert.assertArrayEquals(new double[]{1, 2, 3, 4, 5, 6, 7, 8}, ary2, 0);
+    }
+
+    public void testToFlatArray_String() {
+        String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
+        NativeTensor nt = new NativeTensor(ary);
+
+        String[] ary2 = (String[])nt.toFlatArray();
+        Assert.assertArrayEquals(new String[]{"a", "bc", "def", "ghij"}, ary2);
     }
 }

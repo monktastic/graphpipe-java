@@ -39,7 +39,7 @@ public class NativeTensor {
             }
         } else {
             this.data = t.dataAsByteBuffer();
-            this.numType = numTypeByType.get(t.type());
+            this.numConv = ncByType.get(t.type());
         }
     }
 
@@ -57,7 +57,7 @@ public class NativeTensor {
         if (oClass == String.class) {
             genStringTensor(ary);
         } else if (Number.class.isAssignableFrom(oClass)) {
-            this.numType = numTypeByClass.get(oClass);
+            this.numConv = ncByClass.get(oClass);
             genNumericTensor(ary);
         } else {
             throw new IllegalArgumentException(
@@ -88,7 +88,7 @@ public class NativeTensor {
     public NativeTensor(INDArray ndAry) {
         this.data = ndAry.data().asNio();
         int size = ndAry.data().getElementSize();
-        this.numType = numTypeBySize.get(size);
+        this.numConv = ncBySize.get(size);
         for (long s : ndAry.shape()) {
             this.shape.add(s);
         }
@@ -98,14 +98,14 @@ public class NativeTensor {
     private int elemCount = 1;
     List<String> stringData;
     ByteBuffer data;
-    NumType numType;
+    NumConverter numConv;
     
-    abstract static class NumType {
+    abstract static class NumConverter {
         Class<? extends Number> clazz;
         int type;
         int size;
        
-        NumType(Class<? extends Number> clazz, int type, int size) {
+        NumConverter(Class<? extends Number> clazz, int type, int size) {
             this.clazz = clazz;
             this.type = type;
             this.size = size;
@@ -123,11 +123,13 @@ public class NativeTensor {
         INDArray buildINDArray(NativeTensor t) {
             throw new UnsupportedOperationException();
         }
+
+        abstract Object toFlatArray(NativeTensor t);
     }
-    
-    static List<NumType> numTypes = new ArrayList<>();
+
+    static List<NumConverter> numConvs = new ArrayList<>();
     static {
-        numTypes.add(new NumType(Byte.class, Type.Int8, 1) {
+        numConvs.add(new NumConverter(Byte.class, Type.Int8, 1) {
             void put(ByteBuffer bb, Object ary) {
                 bb.put((byte[]) ary);
             }
@@ -135,27 +137,51 @@ public class NativeTensor {
             void advance(ByteBuffer bb, Object ary) {
                 // No-op because put() already advances.
             }
-        });
-        numTypes.add(new NumType(Short.class, Type.Int16, 2) {
             
+            byte[] toFlatArray(NativeTensor t) {
+                byte[] ary = new byte[t.elemCount];
+                t.data.put(ary);
+                return ary;
+            }
+        });
+        numConvs.add(new NumConverter(Short.class, Type.Int16, 2) {
             void put(ByteBuffer bb, Object ary) {
                 bb.asShortBuffer().put((short[]) ary);
             }
+            short[] toFlatArray(NativeTensor t) {
+                short[] ary = new short[t.elemCount];
+                t.data.asShortBuffer().put(ary);
+                return ary;
+            }
         });
-        numTypes.add(new NumType(Integer.class, Type.Int32,
-                4) {
+        numConvs.add(new NumConverter(Integer.class, Type.Int32, 4) {
             void put(ByteBuffer bb, Object ary) {
                 bb.asIntBuffer().put((int[]) ary);
             }
+            int[] toFlatArray(NativeTensor t) {
+                int[] ary = new int[t.elemCount];
+                t.data.asIntBuffer().put(ary);
+                return ary;
+            }
         });
-        numTypes.add(new NumType(Long.class, Type.Int64, 8) {
+        numConvs.add(new NumConverter(Long.class, Type.Int64, 8) {
             void put(ByteBuffer bb, Object ary) {
                 bb.asLongBuffer().put((long[]) ary);
             }
+            long[] toFlatArray(NativeTensor t) {
+                long[] ary = new long[t.elemCount];
+                t.data.asLongBuffer().put(ary);
+                return ary;
+            }
         });
-        numTypes.add(new NumType(Float.class, Type.Float32, 4) {
+        numConvs.add(new NumConverter(Float.class, Type.Float32, 4) {
             void put(ByteBuffer bb, Object ary) {
                 bb.asFloatBuffer().put((float[]) ary);
+            }
+            float[] toFlatArray(NativeTensor t) {
+                float[] ary = new float[t.elemCount];
+                t.data.asFloatBuffer().put(ary);
+                return ary;
             }
 
             INDArray buildINDArray(NativeTensor t) {
@@ -164,9 +190,14 @@ public class NativeTensor {
                 return Nd4j.create(floats, shapeToIntAry(t.shape));
             }
         });
-        numTypes.add(new NumType(Double.class, Type.Float64, 8) {
+        numConvs.add(new NumConverter(Double.class, Type.Float64, 8) {
             void put(ByteBuffer bb, Object ary) {
                 bb.asDoubleBuffer().put((double[]) ary);
+            }
+            double[] toFlatArray(NativeTensor t) {
+                double[] ary = new double[t.elemCount];
+                t.data.asDoubleBuffer().get(ary);
+                return ary;
             }
 
             INDArray buildINDArray(NativeTensor t) {
@@ -177,15 +208,15 @@ public class NativeTensor {
         });
     }
     
-    private static Map<Class<? extends Number>, NumType> numTypeByClass = new HashMap<>();
-    private static Map<Integer, NumType> numTypeByType = new HashMap<>();
-    private static Map<Integer, NumType> numTypeBySize = new HashMap<>();
+    private static Map<Class<? extends Number>, NumConverter> ncByClass = new HashMap<>();
+    private static Map<Integer, NumConverter> ncByType = new HashMap<>();
+    private static Map<Integer, NumConverter> ncBySize = new HashMap<>();
     
     static {
-        for (NumType nt : numTypes) {
-            numTypeByClass.put(nt.clazz, nt);
-            numTypeByType.put(nt.type, nt);
-            numTypeBySize.put(nt.size, nt);
+        for (NumConverter nc : numConvs) {
+            ncByClass.put(nc.clazz, nc);
+            ncByType.put(nc.type, nc);
+            ncBySize.put(nc.size, nc);
         }
     }
     
@@ -194,8 +225,8 @@ public class NativeTensor {
     }
     
     public INDArray toINDArray() {
-        if (this.numType != null) {
-            return this.numType.buildINDArray(this);
+        if (this.numConv != null) {
+            return this.numConv.buildINDArray(this);
         } else {
             throw new UnsupportedOperationException();
         }
@@ -209,6 +240,14 @@ public class NativeTensor {
         return Tensor.getRootAsTensor(bb);
     }
     
+    public Object toFlatArray() {
+        if (this.numConv != null) {
+            return this.numConv.toFlatArray(this);
+        } else {
+            return this.stringData.toArray();
+        }
+    }
+
     private int BuildNumeric(FlatBufferBuilder b) {
         long[] shapeArray = this.shape.stream().mapToLong(i->i).toArray();
         int shapeOffset = Tensor.createShapeVector(b, shapeArray);
@@ -216,7 +255,7 @@ public class NativeTensor {
 
         Tensor.startTensor(b);
         Tensor.addShape(b, shapeOffset);
-        Tensor.addType(b, this.numType.type);
+        Tensor.addType(b, this.numConv.type);
         Tensor.addData(b, dataOffset);
         return Tensor.endTensor(b);
     }
@@ -239,7 +278,7 @@ public class NativeTensor {
     }
     
     public int Build(FlatBufferBuilder b) {
-        if (numType != null) {
+        if (numConv != null) {
             return BuildNumeric(b);
         } else {
             return BuildString(b);
@@ -260,11 +299,11 @@ public class NativeTensor {
             this.shape.add(s);
             this.elemCount *= s;
         }
-        this.numType = numTypeByClass.get(clazz);
+        this.numConv = ncByClass.get(clazz);
         this.data = ByteBuffer
-                .allocate(this.elemCount * this.numType.size)
+                .allocate(this.elemCount * this.numConv.size)
                 .order(ByteOrder.LITTLE_ENDIAN);
-        this.numType.put(this.data, ary);
+        this.numConv.put(this.data, ary);
         this.data.rewind();
     }
     
@@ -289,7 +328,7 @@ public class NativeTensor {
     }
 
     private void genNumericTensor(Object ary) {
-        this.data = ByteBuffer.allocate(this.elemCount * this.numType.size)
+        this.data = ByteBuffer.allocate(this.elemCount * this.numConv.size)
                 .order(ByteOrder.LITTLE_ENDIAN);
         fillNumericData(ary, 0);
         this.data.rewind();
@@ -302,7 +341,7 @@ public class NativeTensor {
 
         if (dim == this.shape.size() - 1) {
             // The innermost dimension can be copied directly.
-            this.numType.putAndAdvance(data, ary);
+            this.numConv.putAndAdvance(data, ary);
             return;
         }
 
