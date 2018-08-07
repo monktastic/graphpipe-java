@@ -17,57 +17,57 @@ public class NativeTensorTest extends TestCase {
         return data;
     }
 
-    public void testCtorDiffDims() {
+    public void testCreateDiffDims() {
         try {
             // Sub-dims differ ([1] and [2]).
             int ary[][] = {{1}, {2, 3}};
-            new NativeTensor(ary);
+            NativeTensor.fromArray(ary);
             fail("Should have failed");
         } catch (IllegalArgumentException e) {
             assertTrue(e.toString().contains("not rectangular"));
         }
     }
     
-    public void testCtorDiffDimsSameSizes() {
+    public void testCreateDiffDimsSameSizes() {
         try {
             // Sub-dims [3][2] and [2][3]. Both have total size 6.
             int ary[][][] = {{{1, 2}, {3, 4}, {6, 7}}, {{1, 2, 3}, {4, 5, 6}}};
-            new NativeTensor(ary);
+            NativeTensor.fromArray(ary);
             fail("Should have failed");
         } catch (IllegalArgumentException e) {
             assertTrue(e.toString().contains("not rectangular"));
         }
     }
 
-    public void testCtorDiffRanks() {
+    public void testCreateDiffRanks() {
         try {
             // Sub-dims [1][1] and [0].
             int ary[][][] = {{{1}}, {}};
-            new NativeTensor(ary);
+            NativeTensor.fromArray(ary);
             fail("Should have failed");
         } catch (IllegalArgumentException e) {
             assertTrue(e.toString().contains("not rectangular"));
         }
     }
 
-    public void testCtorEmptyAry() {
+    public void testCreateEmptyAry() {
         try {
             int ary[][] = {{}, {}};
-            new NativeTensor(ary);
+            NativeTensor.fromArray(ary);
             fail("Should have failed");
         } catch (ArrayIndexOutOfBoundsException e) {
         }
     }
     
-    public void testCtorRank1() {
+    public void testCreateRank1() {
         int ary[] = {1, 2, 3};
-        new NativeTensor(ary);
+        NativeTensor.fromArray(ary);
     }
     
-    public void testCtorRank2() {
+    public void testCreateRank2() {
         byte ary[][] = {{1, 2}, {3, 4}, {5, 6}};
-        NativeTensor nt = new NativeTensor(ary);
-        assertEquals(6, nt.data.array().length);
+        NativeTensor nt = NativeTensor.fromArray(ary);
+        assertEquals(6, ((NumericNativeTensor)nt).data.array().length);
     }
 
     short rank3Ary[][][] = {
@@ -84,15 +84,16 @@ public class NativeTensorTest extends TestCase {
             0x000A, 0x00B0, 0x0C00, (short)0xD000
     };
 
-    public void testCtorRank3() {
-        NativeTensor nt = new NativeTensor(rank3Ary);
-        Assert.assertArrayEquals(rank3AryData, nt.data.array());
+    public void testCreateRank3() {
+        NativeTensor nt = NativeTensor.fromArray(rank3Ary);
+        Assert.assertArrayEquals(
+                rank3AryData, ((NumericNativeTensor)nt).data.array());
     }
     
-    public void testCtorFlat() {
+    public void testCreateFlat() {
         long[] shape = {rank3Ary.length, rank3Ary[0].length, rank3Ary[0][0].length};
-        Tensor t1 = new NativeTensor(rank3AryFlat, shape).toTensor();
-        Tensor t2 = new NativeTensor(rank3Ary).toTensor();
+        Tensor t1 = NativeTensor.fromFlatArray(rank3AryFlat, shape).toTensor();
+        Tensor t2 = NativeTensor.fromArray(rank3Ary).toTensor();
         assertNumericTensorsEqual(t1, t2);
     }
     
@@ -106,23 +107,25 @@ public class NativeTensorTest extends TestCase {
                 t2.dataAsByteBuffer().array());
     }
 
-    public void testCtorStringData() {
+    public void testCreateStringData() {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
-        NativeTensor nt = new NativeTensor(ary);
-        assertEquals(Arrays.asList("a", "bc", "def", "ghij"), nt.stringData);
+        NativeTensor nt = NativeTensor.fromArray(ary);
+        assertEquals(
+                Arrays.asList("a", "bc", "def", "ghij"), 
+                ((StringNativeTensor)nt).data);
     }
     
-    public void testCtorBadType() {
+    public void testCreateBadType() {
         StringBuffer ary[] = {new StringBuffer()};
         try {
-            new NativeTensor(ary);
+            NativeTensor.fromArray(ary);
             fail("Shouldn't be able to create a NativeTensor of StringBuffers");
         } catch (IllegalArgumentException e) {
         }
     }
    
     public void testToTensor_Numeric() {
-        NativeTensor nt = new NativeTensor(rank3Ary);
+        NativeTensor nt = NativeTensor.fromArray(rank3Ary);
         Tensor t = nt.toTensor();
 
         // Fetch the byte data.
@@ -140,7 +143,7 @@ public class NativeTensorTest extends TestCase {
 
     public void testToTensor_String() {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
-        NativeTensor nt = new NativeTensor(ary);
+        NativeTensor nt = NativeTensor.fromArray(ary);
         Tensor t = nt.toTensor();
 
         // Compare strings.
@@ -160,8 +163,9 @@ public class NativeTensorTest extends TestCase {
     
     public void testFromTensor() {
         double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
-        NativeTensor nt = new NativeTensor(ary);
-        NativeTensor nt2 = new NativeTensor(nt.toTensor());
+        NativeTensor nt = NativeTensor.fromArray(ary);
+        NumericNativeTensor nt2 = 
+                (NumericNativeTensor)NativeTensor.fromTensor(nt.toTensor());
         
         ByteBuffer bb = ByteBuffer.allocate(8 * 8).order(ByteOrder.LITTLE_ENDIAN);
         for (int i = 1; i <= 8; i++) {
@@ -175,7 +179,7 @@ public class NativeTensorTest extends TestCase {
     
     public void testToINDArray() {
         double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
-        NativeTensor nt = new NativeTensor(ary);
+        NativeTensor nt = NativeTensor.fromArray(ary);
         INDArray ndArr = nt.toINDArray();
 
         for (int i = 0; i < ary.length; i++) {
@@ -192,8 +196,9 @@ public class NativeTensorTest extends TestCase {
 
     public void testFromINDArray() {
         double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
-        NativeTensor nt = new NativeTensor(ary);
-        NativeTensor nt2 = new NativeTensor(nt.toINDArray());
+        NativeTensor nt = NativeTensor.fromArray(ary);
+        NumericNativeTensor nt2 = 
+                (NumericNativeTensor)NativeTensor.fromINDArray(nt.toINDArray());
 
         // INDArray is (currently?) stored as floats even if created with
         // Doubles.
@@ -209,7 +214,7 @@ public class NativeTensorTest extends TestCase {
 
     public void testToFlatArray_Numeric() {
         double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
-        NativeTensor nt = new NativeTensor(ary);
+        NativeTensor nt = NativeTensor.fromArray(ary);
 
         double[] ary2 = (double[])nt.toFlatArray();
         Assert.assertArrayEquals(new double[]{1, 2, 3, 4, 5, 6, 7, 8}, ary2, 0);
@@ -217,7 +222,7 @@ public class NativeTensorTest extends TestCase {
 
     public void testToFlatArray_String() {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
-        NativeTensor nt = new NativeTensor(ary);
+        NativeTensor nt = NativeTensor.fromArray(ary);
 
         String[] ary2 = (String[])nt.toFlatArray();
         Assert.assertArrayEquals(new String[]{"a", "bc", "def", "ghij"}, ary2);

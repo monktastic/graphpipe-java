@@ -22,7 +22,7 @@ public class RemoteTest extends TestCase {
     public void testBuildRequest() {
         byte[][] input = {{1, 2, 3}, {4, 5, 6}};
         
-        List<NativeTensor> inputs = Arrays.asList(new NativeTensor(input));
+        List<NativeTensor> inputs = Arrays.asList(NativeTensor.fromArray(input));
         List<String> inputNames = Arrays.asList();
         List<String> outputNames = Arrays.asList();
        
@@ -54,7 +54,7 @@ public class RemoteTest extends TestCase {
         float[][][] input = {{{1, 2, 3}, {4, 5, 6}}};
         
         NativeTensor nt = Remote.Execute("http://localhost:9000", 
-                new NativeTensor(input));
+                NativeTensor.fromArray(input));
 
         INDArray ndArr = nt.toINDArray();
         assertEquals((1 + 2 + 3) * 2.0, ndArr.getDouble(0, 0, 0));

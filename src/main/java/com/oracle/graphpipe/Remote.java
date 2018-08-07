@@ -110,7 +110,7 @@ public class Remote {
         List<NativeTensor> nTensors = new ArrayList<>(ir.outputTensorsLength());
         for (int i = 0; i < ir.outputTensorsLength(); i++) {
             Tensor t = ir.outputTensors(0);
-            nTensors.add(new NativeTensor(t));
+            nTensors.add(NativeTensor.fromTensor(t));
         }
         return nTensors;
     }
