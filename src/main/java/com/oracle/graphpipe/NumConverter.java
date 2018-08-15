@@ -83,7 +83,7 @@ class NumConverters {
 
             byte[] toFlatArray(NumericNativeTensor t) {
                 byte[] ary = new byte[t.elemCount];
-                t.data.put(ary);
+                t.data.get(ary);
                 return ary;
             }
         });
@@ -93,7 +93,7 @@ class NumConverters {
             }
             short[] toFlatArray(NumericNativeTensor t) {
                 short[] ary = new short[t.elemCount];
-                t.data.asShortBuffer().put(ary);
+                t.data.asShortBuffer().get(ary);
                 return ary;
             }
         });
@@ -103,7 +103,7 @@ class NumConverters {
             }
             int[] toFlatArray(NumericNativeTensor t) {
                 int[] ary = new int[t.elemCount];
-                t.data.asIntBuffer().put(ary);
+                t.data.asIntBuffer().get(ary);
                 return ary;
             }
         });
@@ -113,7 +113,7 @@ class NumConverters {
             }
             long[] toFlatArray(NumericNativeTensor t) {
                 long[] ary = new long[t.elemCount];
-                t.data.asLongBuffer().put(ary);
+                t.data.asLongBuffer().get(ary);
                 return ary;
             }
         });
@@ -123,7 +123,7 @@ class NumConverters {
             }
             float[] toFlatArray(NumericNativeTensor t) {
                 float[] ary = new float[t.elemCount];
-                t.data.asFloatBuffer().put(ary);
+                t.data.asFloatBuffer().get(ary);
                 return ary;
             }
 
