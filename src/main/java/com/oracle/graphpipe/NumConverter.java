@@ -17,29 +17,39 @@ import java.util.Map;
  */
 abstract class NumConverter {
     final Class<? extends Number> clazz;
+    final Class<?> primClazz;
     final int type;
     final int size;
 
-    NumConverter(Class<? extends Number> clazz, int type, int size) {
+    NumConverter(Class<? extends Number> clazz, Class<?> primClazz, int type, 
+                 int size) {
         this.clazz = clazz;
+        this.primClazz = primClazz;
         this.type = type;
         this.size = size;
     }
 
-    void putAndAdvance(ByteBuffer bb, Object ary) {
-        put(bb, ary);
-        advance(bb, ary);
-    }
+    abstract void get(ByteBuffer bb, Object ary);
     abstract void put(ByteBuffer bb, Object ary);
+
     void advance(ByteBuffer bb, Object ary) {
         bb.position(bb.position() + Array.getLength(ary) * this.size);
     }
 
     INDArray buildINDArray(NumericNativeTensor t) {
+        // Only float[] and double[] are supported by Nd4j.
         throw new UnsupportedOperationException();
     }
-
-    abstract Object toFlatArray(NumericNativeTensor t);
+    
+    Object toFlatArray(NumericNativeTensor t) {
+        Object ary = Array.newInstance(primClazz, t.elemCount);
+        get(t.data, ary);
+        return ary;
+    }
+    
+    Object createNDArray(int[] shape) {
+        return Array.newInstance(primClazz, shape);
+    }
 
     static int[] shapeToIntAry(List<Long> shape) {
         return shape.stream().mapToInt(Long::intValue).toArray();
@@ -47,7 +57,7 @@ abstract class NumConverter {
 }
 
 class NumConverters {
-    static final List<NumConverter> all = new ArrayList<>();
+    private static final List<NumConverter> all = new ArrayList<>();
     private static final Map<Class<? extends Number>, NumConverter> 
             byClass = new HashMap<>();
     private static final Map<Integer, NumConverter> byType = new HashMap<>();
@@ -72,81 +82,63 @@ class NumConverters {
     12. String,
     */
     static {
-        all.add(new NumConverter(Byte.class, Type.Int8, 1) {
+        all.add(new NumConverter(Byte.class, byte.class, Type.Int8, 1) {
+            void get(ByteBuffer bb, Object ary) {
+                bb.get((byte[])ary);
+            }
             void put(ByteBuffer bb, Object ary) {
                 bb.put((byte[]) ary);
             }
-
             void advance(ByteBuffer bb, Object ary) {
                 // No-op because put() already advances.
             }
-
-            byte[] toFlatArray(NumericNativeTensor t) {
-                byte[] ary = new byte[t.elemCount];
-                t.data.get(ary);
-                return ary;
-            }
         });
-        all.add(new NumConverter(Short.class, Type.Int16, 2) {
+        all.add(new NumConverter(Short.class, short.class, Type.Int16, 2) {
+            void get(ByteBuffer bb, Object ary) {
+                bb.asShortBuffer().get((short[])ary);
+            }
             void put(ByteBuffer bb, Object ary) {
                 bb.asShortBuffer().put((short[]) ary);
             }
-            short[] toFlatArray(NumericNativeTensor t) {
-                short[] ary = new short[t.elemCount];
-                t.data.asShortBuffer().get(ary);
-                return ary;
-            }
         });
-        all.add(new NumConverter(Integer.class, Type.Int32, 4) {
+        all.add(new NumConverter(Integer.class, int.class, Type.Int32, 4) {
+            void get(ByteBuffer bb, Object ary) {
+                bb.asIntBuffer().get((int[]) ary);
+            }
             void put(ByteBuffer bb, Object ary) {
                 bb.asIntBuffer().put((int[]) ary);
             }
-            int[] toFlatArray(NumericNativeTensor t) {
-                int[] ary = new int[t.elemCount];
-                t.data.asIntBuffer().get(ary);
-                return ary;
-            }
         });
-        all.add(new NumConverter(Long.class, Type.Int64, 8) {
+        all.add(new NumConverter(Long.class, long.class, Type.Int64, 8) {
+            void get(ByteBuffer bb, Object ary) {
+                bb.asLongBuffer().get((long[]) ary);
+            }
             void put(ByteBuffer bb, Object ary) {
                 bb.asLongBuffer().put((long[]) ary);
             }
-            long[] toFlatArray(NumericNativeTensor t) {
-                long[] ary = new long[t.elemCount];
-                t.data.asLongBuffer().get(ary);
-                return ary;
-            }
         });
-        all.add(new NumConverter(Float.class, Type.Float32, 4) {
+        all.add(new NumConverter(Float.class, float.class, Type.Float32, 4) {
+            void get(ByteBuffer bb, Object ary) {
+                bb.asFloatBuffer().get((float[]) ary);
+            }
             void put(ByteBuffer bb, Object ary) {
                 bb.asFloatBuffer().put((float[]) ary);
             }
-            float[] toFlatArray(NumericNativeTensor t) {
-                float[] ary = new float[t.elemCount];
-                t.data.asFloatBuffer().get(ary);
-                return ary;
-            }
-
             INDArray buildINDArray(NumericNativeTensor t) {
-                float[] floats = new float[t.elemCount];
-                t.data.asFloatBuffer().get(floats);
-                return Nd4j.create(floats, shapeToIntAry(t.shape));
+                return Nd4j.create(
+                        (float[])toFlatArray(t), shapeToIntAry(t.shape));
             }
         });
-        all.add(new NumConverter(Double.class, Type.Float64, 8) {
+        all.add(new NumConverter(Double.class, double.class, Type.Float64, 8) {
+            void get(ByteBuffer bb, Object ary) {
+                bb.asDoubleBuffer().get((double[]) ary);
+            }
             void put(ByteBuffer bb, Object ary) {
                 bb.asDoubleBuffer().put((double[]) ary);
             }
-            double[] toFlatArray(NumericNativeTensor t) {
-                double[] ary = new double[t.elemCount];
-                t.data.asDoubleBuffer().get(ary);
-                return ary;
-            }
-
             INDArray buildINDArray(NumericNativeTensor t) {
-                double[] doubles = new double[t.elemCount];
-                t.data.asDoubleBuffer().get(doubles);
-                return Nd4j.create(doubles, shapeToIntAry(t.shape));
+                return Nd4j.create(
+                        (double[])toFlatArray(t), shapeToIntAry(t.shape));
             }
         });
     }

@@ -110,8 +110,8 @@ public class NativeTensorTest extends TestCase {
     public void testCreateStringData() {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
         NativeTensor nt = NativeTensor.fromArray(ary);
-        assertEquals(
-                Arrays.asList("a", "bc", "def", "ghij"), 
+        Assert.assertArrayEquals(
+                new String[]{"a", "bc", "def", "ghij"}, 
                 ((StringNativeTensor)nt).data);
     }
     
@@ -216,7 +216,7 @@ public class NativeTensorTest extends TestCase {
         double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
         NativeTensor nt = NativeTensor.fromArray(ary);
 
-        double[] ary2 = (double[])nt.toFlatArray();
+        double ary2[] = (double[])nt.toFlatArray();
         Assert.assertArrayEquals(new double[]{1, 2, 3, 4, 5, 6, 7, 8}, ary2, 0);
     }
 
@@ -224,7 +224,23 @@ public class NativeTensorTest extends TestCase {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
         NativeTensor nt = NativeTensor.fromArray(ary);
 
-        String[] ary2 = (String[])nt.toFlatArray();
+        String ary2[] = (String[])nt.toFlatArray();
         Assert.assertArrayEquals(new String[]{"a", "bc", "def", "ghij"}, ary2);
+    }
+    
+    public void testToNDArray_Numeric() {
+        long ary[][][] = {{{1, 2, 7}, {3, 4, 8}}, {{5, 6, 9}, {7, 8, 10}}};
+        NativeTensor nt = NativeTensor.fromArray(ary);
+
+        long ary2[][][] = (long[][][])nt.toNDArray();
+        Assert.assertArrayEquals(ary2, ary);
+    }
+
+    public void testToNDArray_String() {
+        String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
+        NativeTensor nt = NativeTensor.fromArray(ary);
+
+        String ary2[][] = (String[][])nt.toNDArray();
+        Assert.assertArrayEquals(ary2, ary);
     }
 }
