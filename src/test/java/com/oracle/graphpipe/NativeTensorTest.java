@@ -174,7 +174,7 @@ public class NativeTensorTest extends TestCase {
         bb.rewind();
         Assert.assertArrayEquals(fromByteBuffer(bb), fromByteBuffer(nt2.data));
         assertEquals(Arrays.asList(2L, 2L, 2L), nt2.shape);
-        assertEquals(Double.class, nt2.numConv.clazz);
+        assertEquals(double.class, nt2.numConv.clazz);
     }
     
     public void testToINDArray() {
@@ -207,7 +207,7 @@ public class NativeTensorTest extends TestCase {
             bb.putFloat(i);
         }
         bb.rewind();
-        assertEquals(Float.class, nt2.numConv.clazz);
+        assertEquals(float.class, nt2.numConv.clazz);
         Assert.assertArrayEquals(fromByteBuffer(bb), fromByteBuffer(nt2.data));
         assertEquals(Arrays.asList(2L, 2L, 2L), nt2.shape);
     }

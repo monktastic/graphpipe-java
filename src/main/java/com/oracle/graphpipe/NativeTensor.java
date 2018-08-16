@@ -34,32 +34,35 @@ public abstract class NativeTensor {
         Class<?> oClass = getAryType(ary);
         if (oClass == String.class) {
             return new StringNativeTensor(ary);
-        } else if (Number.class.isAssignableFrom(oClass)) {
-            return new NumericNativeTensor(ary, (Class<Number>)oClass);
-        } else {
-            throw new IllegalArgumentException(
-                    "Cannot convert type " + oClass.getSimpleName());
         }
+
+        NumConverter nc = NumConverters.byClass(oClass);
+        if (nc != null) {
+            return new NumericNativeTensor(ary, nc);
+        }
+
+        throw new IllegalArgumentException(
+                "Cannot convert type " + oClass.getSimpleName());
     }
 
     public static NativeTensor fromFlatArray(byte[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, Byte.class);
+        return new NumericNativeTensor(ary, shape, byte.class);
     }
 
     public static NativeTensor fromFlatArray(short[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, Short.class);
+        return new NumericNativeTensor(ary, shape, short.class);
     }
 
     public static NativeTensor fromFlatArray(int[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, Integer.class);
+        return new NumericNativeTensor(ary, shape, int.class);
     }
 
     public static NativeTensor fromFlatArray(float[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, Float.class);
+        return new NumericNativeTensor(ary, shape, float.class);
     }
 
     public static NativeTensor fromFlatArray(double[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, Double.class);
+        return new NumericNativeTensor(ary, shape, double.class);
     }
     
     public static NativeTensor fromINDArray(INDArray ndAry) {
@@ -85,21 +88,24 @@ public abstract class NativeTensor {
     int elemCount = 1;
 
     private static Class<?> getAryType(Object ary) {
-        if (ary.getClass().isArray()) {
-            return getAryType(Array.get(ary, 0));
+        // We inspect the child element (instead of doing it in the recursive
+        // call) to prevent autoboxing.
+        Object el = Array.get(ary, 0);
+        if (el.getClass().isArray()) {
+            return getAryType(el);
         } else {
-            return ary.getClass();
+            return ary.getClass().getComponentType();
         }
     }
 
-    protected void fillShape(Tensor t) {
+    void fillShape(Tensor t) {
         for (int i = 0; i < t.shapeLength(); i++) {
             this.shape.add(t.shape(i));
             this.elemCount *= t.shape(i);
         }
     }
 
-    protected void fillShape(Object ary) {
+    void fillShape(Object ary) {
         if (ary.getClass().isArray()) {
             long length = Array.getLength(ary);
             this.shape.add(length);
@@ -129,9 +135,9 @@ class NumericNativeTensor extends NativeTensor {
         this.numConv = NumConverters.byType(t.type());
     }
     
-    NumericNativeTensor(Object ary, Class<? extends Number> clazz) {
+    NumericNativeTensor(Object ary, NumConverter nc) {
         fillShape(ary);
-        this.numConv = NumConverters.byClass((Class<Number>)clazz);
+        this.numConv = nc;
         this.data = ByteBuffer.allocate(this.elemCount * this.numConv.size)
                 .order(ByteOrder.LITTLE_ENDIAN);
         fillFrom(ary, 0);
@@ -201,6 +207,7 @@ class NumericNativeTensor extends NativeTensor {
     public Object toNDArray() {
         Object ary = this.numConv.createNDArray(shapeAsIntArray());
         fillTo(ary, 0);
+        this.data.rewind();
         return ary;
     }
     
@@ -231,41 +238,42 @@ class StringNativeTensor extends NativeTensor {
     StringNativeTensor(Object ary) {
         fillShape(ary);
         this.data = new String[this.elemCount];
-        fillFrom(ary, 0, new int[]{0});
+        fillFrom(ary, 0, 0);
     }
 
-    // We use int[] as an "int holder," because there's no standard mutable int.
-    private void fillFrom(Object ary, int dim, int[] idx) {
+    private int fillFrom(Object ary, int dim, int idx) {
         int len = Array.getLength(ary);
         if (this.shape.get(dim) != len) {
             throw new IllegalArgumentException("Array is not rectangular");
         }
         
         if (dim == this.shape.size() - 1) {
-            System.arraycopy(ary, 0, this.data, idx[0], len);
-            idx[0] += len;
+            System.arraycopy(ary, 0, this.data, idx, len);
+            return idx + len;
         } else {
             for (int i = 0; i < this.shape.get(dim); i++) {
-                fillFrom(Array.get(ary, i), dim + 1, idx);
+                idx = fillFrom(Array.get(ary, i), dim + 1, idx);
             }
         }
+        return idx;
     }
     
-    private void fillTo(Object ary, int dim, int[] idx) {
+    private int fillTo(Object ary, int dim, int idx) {
         if (dim == this.shape.size() - 1) {
             int len = Array.getLength(ary);
-            System.arraycopy(this.data, idx[0], ary, 0, len);
-            idx[0] += len;
+            System.arraycopy(this.data, idx, ary, 0, len);
+            return idx + len;
         } else {
             for (int i = 0; i < this.shape.get(dim); i++) {
-                fillTo(Array.get(ary, i), dim + 1, idx);
+                idx = fillTo(Array.get(ary, i), dim + 1, idx);
             }
         }
+        return idx;
     }
     
     public Object toNDArray() {
         Object ary = Array.newInstance(String.class, shapeAsIntArray());
-        fillTo(ary, 0, new int[]{0});
+        fillTo(ary, 0, 0);
         return ary;
     }
     

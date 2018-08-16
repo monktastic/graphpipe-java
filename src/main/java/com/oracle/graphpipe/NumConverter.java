@@ -16,15 +16,12 @@ import java.util.Map;
  * Created by aditpras on 8/7/18.
  */
 abstract class NumConverter {
-    final Class<? extends Number> clazz;
-    final Class<?> primClazz;
+    final Class<?> clazz;
     final int type;
     final int size;
 
-    NumConverter(Class<? extends Number> clazz, Class<?> primClazz, int type, 
-                 int size) {
+    NumConverter(Class<?> clazz, int type, int size) {
         this.clazz = clazz;
-        this.primClazz = primClazz;
         this.type = type;
         this.size = size;
     }
@@ -42,24 +39,19 @@ abstract class NumConverter {
     }
     
     Object toFlatArray(NumericNativeTensor t) {
-        Object ary = Array.newInstance(primClazz, t.elemCount);
+        Object ary = Array.newInstance(clazz, t.elemCount);
         get(t.data, ary);
         return ary;
     }
     
     Object createNDArray(int[] shape) {
-        return Array.newInstance(primClazz, shape);
-    }
-
-    static int[] shapeToIntAry(List<Long> shape) {
-        return shape.stream().mapToInt(Long::intValue).toArray();
+        return Array.newInstance(clazz, shape);
     }
 }
 
 class NumConverters {
     private static final List<NumConverter> all = new ArrayList<>();
-    private static final Map<Class<? extends Number>, NumConverter> 
-            byClass = new HashMap<>();
+    private static final Map<Class<?>, NumConverter> byClass = new HashMap<>();
     private static final Map<Integer, NumConverter> byType = new HashMap<>();
     private static final Map<Integer, NumConverter> bySize = new HashMap<>();
 
@@ -82,7 +74,7 @@ class NumConverters {
     12. String,
     */
     static {
-        all.add(new NumConverter(Byte.class, byte.class, Type.Int8, 1) {
+        all.add(new NumConverter(byte.class, Type.Int8, 1) {
             void get(ByteBuffer bb, Object ary) {
                 bb.get((byte[])ary);
             }
@@ -90,10 +82,10 @@ class NumConverters {
                 bb.put((byte[]) ary);
             }
             void advance(ByteBuffer bb, Object ary) {
-                // No-op because put() already advances.
+                // No-op because put() and get() already advance.
             }
         });
-        all.add(new NumConverter(Short.class, short.class, Type.Int16, 2) {
+        all.add(new NumConverter(short.class, Type.Int16, 2) {
             void get(ByteBuffer bb, Object ary) {
                 bb.asShortBuffer().get((short[])ary);
             }
@@ -101,7 +93,7 @@ class NumConverters {
                 bb.asShortBuffer().put((short[]) ary);
             }
         });
-        all.add(new NumConverter(Integer.class, int.class, Type.Int32, 4) {
+        all.add(new NumConverter(int.class, Type.Int32, 4) {
             void get(ByteBuffer bb, Object ary) {
                 bb.asIntBuffer().get((int[]) ary);
             }
@@ -109,7 +101,7 @@ class NumConverters {
                 bb.asIntBuffer().put((int[]) ary);
             }
         });
-        all.add(new NumConverter(Long.class, long.class, Type.Int64, 8) {
+        all.add(new NumConverter(long.class, Type.Int64, 8) {
             void get(ByteBuffer bb, Object ary) {
                 bb.asLongBuffer().get((long[]) ary);
             }
@@ -117,7 +109,7 @@ class NumConverters {
                 bb.asLongBuffer().put((long[]) ary);
             }
         });
-        all.add(new NumConverter(Float.class, float.class, Type.Float32, 4) {
+        all.add(new NumConverter(float.class, Type.Float32, 4) {
             void get(ByteBuffer bb, Object ary) {
                 bb.asFloatBuffer().get((float[]) ary);
             }
@@ -126,10 +118,10 @@ class NumConverters {
             }
             INDArray buildINDArray(NumericNativeTensor t) {
                 return Nd4j.create(
-                        (float[])toFlatArray(t), shapeToIntAry(t.shape));
+                        (float[])toFlatArray(t), t.shapeAsIntArray());
             }
         });
-        all.add(new NumConverter(Double.class, double.class, Type.Float64, 8) {
+        all.add(new NumConverter(double.class, Type.Float64, 8) {
             void get(ByteBuffer bb, Object ary) {
                 bb.asDoubleBuffer().get((double[]) ary);
             }
@@ -138,7 +130,7 @@ class NumConverters {
             }
             INDArray buildINDArray(NumericNativeTensor t) {
                 return Nd4j.create(
-                        (double[])toFlatArray(t), shapeToIntAry(t.shape));
+                        (double[])toFlatArray(t), t.shapeAsIntArray());
             }
         });
     }
@@ -151,7 +143,7 @@ class NumConverters {
         }
     }
     
-    static NumConverter byClass(Class<? extends Number> clazz) {
+    static NumConverter byClass(Class<?> clazz) {
         return byClass.get(clazz);
     }
 
