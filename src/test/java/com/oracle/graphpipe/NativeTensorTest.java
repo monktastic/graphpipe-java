@@ -103,7 +103,7 @@ public class NativeTensorTest extends TestCase {
         String[][][] expected = {{{"a"}, {"b"}, {"c"}}, {{"d"}, {"e"}, {"f"}}};
         
         NativeTensor nt = NativeTensor.fromFlatArray(array, shape);
-        String[][][] result = (String[][][])nt.toNDArray();
+        String[][][] result = (String[][][])nt.toArray();
         Assert.assertArrayEquals(result, expected);
     }
     
@@ -242,7 +242,7 @@ public class NativeTensorTest extends TestCase {
         long ary[][][] = {{{1, 2, 7}, {3, 4, 8}}, {{5, 6, 9}, {7, 8, 10}}};
         NativeTensor nt = NativeTensor.fromArray(ary);
 
-        long ary2[][][] = (long[][][])nt.toNDArray();
+        long ary2[][][] = (long[][][])nt.toArray();
         Assert.assertArrayEquals(ary2, ary);
     }
 
@@ -250,7 +250,7 @@ public class NativeTensorTest extends TestCase {
         String ary[][] = {{"a", "bc"}, {"def", "ghij"}};
         NativeTensor nt = NativeTensor.fromArray(ary);
 
-        String ary2[][] = (String[][])nt.toNDArray();
+        String ary2[][] = (String[][])nt.toArray();
         Assert.assertArrayEquals(ary2, ary);
     }
 }

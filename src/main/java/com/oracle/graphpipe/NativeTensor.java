@@ -74,13 +74,13 @@ public abstract class NativeTensor {
         ByteBuffer bb = b.dataBuffer();
         return Tensor.getRootAsTensor(bb);
     }
-    
+
+    // To primitive n-dim array.
+    public abstract Object toArray();
     public abstract Object toFlatArray();
     public abstract INDArray toINDArray();
     public abstract int Build(FlatBufferBuilder b);
     
-    // To primitive n-dim array.
-    public abstract Object toNDArray();
     
     final List<Long> shape = new ArrayList<>();
     int elemCount = 1;
@@ -196,7 +196,7 @@ class NumericNativeTensor extends NativeTensor {
         return this.numConv.toFlatArray(this);
     }
 
-    public Object toNDArray() {
+    public Object toArray() {
         Object ary = this.numConv.createNDArray(shapeAsIntArray());
         fillTo(ary, 0);
         this.data.rewind();
@@ -270,7 +270,7 @@ class StringNativeTensor extends NativeTensor {
         return idx;
     }
     
-    public Object toNDArray() {
+    public Object toArray() {
         Object ary = Array.newInstance(String.class, shapeAsIntArray());
         fillTo(ary, 0, 0);
         return ary;
