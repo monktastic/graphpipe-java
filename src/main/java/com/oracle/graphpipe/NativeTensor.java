@@ -45,24 +45,22 @@ public abstract class NativeTensor {
                 "Cannot convert type " + oClass.getSimpleName());
     }
 
-    public static NativeTensor fromFlatArray(byte[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, byte.class);
-    }
+    public static NativeTensor fromFlatArray(Object ary, long[] shape) {
+        if (!ary.getClass().isArray()) {
+            throw new IllegalArgumentException("Not an array");
+        }
+        Class<?> oClass = ary.getClass().getComponentType();
+        if (oClass == String.class) {
+            return new StringNativeTensor(ary, shape);
+        }
 
-    public static NativeTensor fromFlatArray(short[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, short.class);
-    }
-
-    public static NativeTensor fromFlatArray(int[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, int.class);
-    }
-
-    public static NativeTensor fromFlatArray(float[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, float.class);
-    }
-
-    public static NativeTensor fromFlatArray(double[] ary, long[] shape) {
-        return new NumericNativeTensor(ary, shape, double.class);
+        NumConverter nc = NumConverters.byClass(oClass);
+        if (nc != null) {
+            return new NumericNativeTensor(ary, shape, nc);
+        }
+        
+        throw new IllegalArgumentException(
+                "Cannot convert type " + oClass.getSimpleName());
     }
     
     public static NativeTensor fromINDArray(INDArray ndAry) {
@@ -105,6 +103,7 @@ public abstract class NativeTensor {
         }
     }
 
+    // For multidimensional arrays.
     void fillShape(Object ary) {
         if (ary.getClass().isArray()) {
             long length = Array.getLength(ary);
@@ -144,6 +143,16 @@ class NumericNativeTensor extends NativeTensor {
         this.data.rewind();
     }
 
+    NumericNativeTensor(Object ary, long[] shape, NumConverter nc) {
+        this.elemCount = Array.getLength(ary);
+        for (long l : shape) this.shape.add(l);
+        this.numConv = nc;
+        this.data = ByteBuffer.allocate(this.elemCount * this.numConv.size)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        this.numConv.put(data, ary);
+        this.data.rewind();
+    }
+    
     private void fillFrom(Object ary, int dim) {
         if (this.shape.get(dim) != Array.getLength(ary)) {
             throw new IllegalArgumentException("Array is not rectangular");
@@ -170,23 +179,6 @@ class NumericNativeTensor extends NativeTensor {
         }
     }
 
-    /**
-     * From flat array.
-     */
-    NumericNativeTensor(
-            Object ary, long[] shape, Class<? extends Number> clazz) {
-        for (long s : shape) {
-            this.shape.add(s);
-            this.elemCount *= s;
-        }
-        this.numConv = NumConverters.byClass(clazz);
-        this.data = ByteBuffer
-                .allocate(this.elemCount * this.numConv.size)
-                .order(ByteOrder.LITTLE_ENDIAN);
-        this.numConv.put(this.data, ary);
-        this.data.rewind();
-    }
-    
     NumericNativeTensor(INDArray ndAry) {
         this.data = ndAry.data().asNio();
         int size = ndAry.data().getElementSize();
@@ -239,6 +231,13 @@ class StringNativeTensor extends NativeTensor {
         fillShape(ary);
         this.data = new String[this.elemCount];
         fillFrom(ary, 0, 0);
+    }
+    
+    StringNativeTensor(Object ary, long[] shape) {
+        this.elemCount = Array.getLength(ary);
+        for (long l : shape) this.shape.add(l);
+        this.data = new String[this.elemCount];
+        System.arraycopy(ary, 0, this.data, 0, this.elemCount);
     }
 
     private int fillFrom(Object ary, int dim, int idx) {

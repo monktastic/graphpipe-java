@@ -90,11 +90,21 @@ public class NativeTensorTest extends TestCase {
                 rank3AryData, ((NumericNativeTensor)nt).data.array());
     }
     
-    public void testCreateFlat() {
+    public void testCreateFlat_Numeric() {
         long[] shape = {rank3Ary.length, rank3Ary[0].length, rank3Ary[0][0].length};
         Tensor t1 = NativeTensor.fromFlatArray(rank3AryFlat, shape).toTensor();
         Tensor t2 = NativeTensor.fromArray(rank3Ary).toTensor();
         assertNumericTensorsEqual(t1, t2);
+    }
+    
+    public void testCreateFlat_String() {
+        long[] shape = {2, 3, 1};
+        String[] array = {"a", "b", "c", "d", "e", "f"};
+        String[][][] expected = {{{"a"}, {"b"}, {"c"}}, {{"d"}, {"e"}, {"f"}}};
+        
+        NativeTensor nt = NativeTensor.fromFlatArray(array, shape);
+        String[][][] result = (String[][][])nt.toNDArray();
+        Assert.assertArrayEquals(result, expected);
     }
     
     private void assertNumericTensorsEqual(Tensor t1, Tensor t2) {
