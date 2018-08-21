@@ -1,5 +1,6 @@
 package com.oracle.graphpipe;
 
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.oracle.graphpipefb.Tensor;
 import com.oracle.graphpipefb.Type;
 import junit.framework.TestCase;
@@ -252,5 +253,19 @@ public class NativeTensorTest extends TestCase {
 
         String ary2[][] = (String[][])nt.toArray();
         Assert.assertArrayEquals(ary2, ary);
+    }
+
+    // Tests that converting it to an INDArray and back works.
+    public void testToAndFromINDArray() {
+        double ary[][][] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}};
+        NativeTensor nt = NativeTensor.fromArray(ary);
+        INDArray ndArr = nt.toINDArray();
+        NativeTensor nt2 = NativeTensor.fromINDArray(ndArr);
+        
+        // TODO: Implement equals().
+        double[] a1 = (double[])nt.toFlatArray();
+        double[] a2 = (double[])nt.toFlatArray();
+        Assert.assertArrayEquals(a2, a1, 0);
+        assertEquals(nt2.shape, nt.shape);
     }
 }

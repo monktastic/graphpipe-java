@@ -85,6 +85,10 @@ public abstract class NativeTensor {
     final List<Long> shape = new ArrayList<>();
     int elemCount = 1;
 
+    public List<Long> getShape() {
+        return shape;
+    }
+    
     private static Class<?> getAryType(Object ary) {
         // We inspect the child element (instead of doing it in the recursive
         // call) to prevent autoboxing.
@@ -180,7 +184,12 @@ class NumericNativeTensor extends NativeTensor {
     }
 
     NumericNativeTensor(INDArray ndAry) {
-        this.data = ndAry.data().asNio();
+        // We convert to an array-backed ByteBuffer so that we can access it
+        // later (while Build()ing).
+        ByteBuffer bb = ndAry.data().asNio();
+        byte[] bytes = new byte[bb.remaining()];
+        bb.get(bytes);
+        this.data = ByteBuffer.wrap(bytes);
         int size = ndAry.data().getElementSize();
         this.numConv = NumConverters.bySize(size);
         for (long s : ndAry.shape()) {
@@ -202,11 +211,10 @@ class NumericNativeTensor extends NativeTensor {
         this.data.rewind();
         return ary;
     }
-    
+
     public int Build(FlatBufferBuilder b) {
         int shapeOffset = Tensor.createShapeVector(b, shapeAsArray());
         int dataOffset = Tensor.createDataVector(b, this.data.array());
-
         Tensor.startTensor(b);
         Tensor.addShape(b, shapeOffset);
         Tensor.addType(b, this.numConv.type);

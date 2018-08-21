@@ -18,7 +18,7 @@ import java.util.List;
  */
 public class RemoteTest extends TestCase {
     // Ctor from INDArray.
-    // Get back as native flat/multid array.
+    // Get back as native flat/multidimensional array.
     public void testBuildRequest() {
         byte[][] input = {{1, 2, 3}, {4, 5, 6}};
         
@@ -52,8 +52,7 @@ public class RemoteTest extends TestCase {
     // TODO: Currently requires Aditya's modified RemoteModelWithGraphPipe.ipynb
     public void testRemote() throws IOException {
         float[][][] input = {{{1, 2, 3}, {4, 5, 6}}};
-        
-        NativeTensor nt = Remote.Execute("http://localhost:9000", 
+        NativeTensor nt = Remote.Execute("http://localhost:9000",
                 NativeTensor.fromArray(input));
 
         INDArray ndArr = nt.toINDArray();
