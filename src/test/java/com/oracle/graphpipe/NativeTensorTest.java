@@ -271,8 +271,9 @@ public class NativeTensorTest extends TestCase {
 
     // When an INDArray is permuted, the underlying buffer does not change,
     // nor does its linearView. Ensure that we're getting the right order.
-    public static void testFromINDArray_permuted() {
+    public static void testFromINDArray_modified() {
         INDArray ary = Nd4j.linspace(1, 2*3, 2*3).reshape(2, 3);
+        ary.ravel();
         NativeTensor nt = NativeTensor.fromINDArray(ary);
 
         // [[1 2 3] [4 5 6]] -> [[1 4] [2 5] [3 6]]

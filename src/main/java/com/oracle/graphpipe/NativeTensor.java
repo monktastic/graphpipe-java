@@ -117,6 +117,10 @@ public abstract class NativeTensor {
         }
     }
 
+    static long[] intsToLongs(int[] ints) {
+        return Arrays.stream(ints).mapToLong(i->i).toArray();
+    }
+    
     long[] shapeAsArray() {
         return this.shape.stream().mapToLong(i->i).toArray();
     }
@@ -183,30 +187,10 @@ class NumericNativeTensor extends NativeTensor {
         }
     }
 
-    private void fillFromND(INDArray ary, int dim, int[] indices) {
-        if (dim == ary.shape().length) {
-            float f = ary.getFloat(indices);
-            this.data.asFloatBuffer().put(f);
-            this.data.position(this.data.position() + 4);
-        } else {
-            for (indices[dim] = 0; indices[dim] < this.shape.get(dim); 
-                 indices[dim]++) {
-                fillFromND(ary, dim + 1, indices);
-            }
-        }
-    }
-
     NumericNativeTensor(INDArray ndAry) {
-        for (long s : ndAry.shape()) {
-            this.shape.add(s);
-            this.elemCount *= s;
-        }
-        this.numConv = NumConverters.bySize(4);
-        this.data = ByteBuffer.allocate(this.elemCount * this.numConv.size)
-                .order(ByteOrder.LITTLE_ENDIAN);
-        fillFromND(ndAry, 0,
-                (int[])Array.newInstance(int.class, this.shape.size()));
-        this.data.rewind();
+        this(ndAry.ravel().data().asFloat(),
+                intsToLongs(ndAry.shape()),
+                NumConverters.byClass(float.class));
     }
 
     public INDArray toINDArray() {
