@@ -66,7 +66,7 @@ public abstract class NativeTensor {
     public static NativeTensor fromINDArray(INDArray ndAry) {
         return new NumericNativeTensor(ndAry);
     }
-
+    
     public Tensor toTensor() {
         FlatBufferBuilder b = new FlatBufferBuilder(1024);
         int offset = this.Build(b);
@@ -183,20 +183,32 @@ class NumericNativeTensor extends NativeTensor {
         }
     }
 
-    NumericNativeTensor(INDArray ndAry) {
-        // We convert to an array-backed ByteBuffer so that we can access it
-        // later (while Build()ing).
-        ByteBuffer bb = ndAry.data().asNio();
-        byte[] bytes = new byte[bb.remaining()];
-        bb.get(bytes);
-        this.data = ByteBuffer.wrap(bytes);
-        int size = ndAry.data().getElementSize();
-        this.numConv = NumConverters.bySize(size);
-        for (long s : ndAry.shape()) {
-            this.shape.add(s);
+    private void fillFromND(INDArray ary, int dim, int[] indices) {
+        if (dim == ary.shape().length) {
+            float f = ary.getFloat(indices);
+            this.data.asFloatBuffer().put(f);
+            this.data.position(this.data.position() + 4);
+        } else {
+            for (indices[dim] = 0; indices[dim] < this.shape.get(dim); 
+                 indices[dim]++) {
+                fillFromND(ary, dim + 1, indices);
+            }
         }
     }
-    
+
+    NumericNativeTensor(INDArray ndAry) {
+        for (long s : ndAry.shape()) {
+            this.shape.add(s);
+            this.elemCount *= s;
+        }
+        this.numConv = NumConverters.bySize(4);
+        this.data = ByteBuffer.allocate(this.elemCount * this.numConv.size)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        fillFromND(ndAry, 0,
+                (int[])Array.newInstance(int.class, this.shape.size()));
+        this.data.rewind();
+    }
+
     public INDArray toINDArray() {
         return this.numConv.buildINDArray(this);
     }

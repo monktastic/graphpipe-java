@@ -1,6 +1,7 @@
 package com.oracle.graphpipe;
 
 import com.oracle.graphpipefb.Type;
+import org.nd4j.linalg.api.buffer.LongBuffer;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 
 /**
@@ -41,6 +43,7 @@ abstract class NumConverter {
     Object toFlatArray(NumericNativeTensor t) {
         Object ary = Array.newInstance(clazz, t.elemCount);
         get(t.data, ary);
+        t.data.rewind();
         return ary;
     }
     
