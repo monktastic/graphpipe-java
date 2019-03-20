@@ -16,12 +16,16 @@ public final class MetadataResponse extends Table {
 
   public String name() { int o = __offset(4); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer nameAsByteBuffer() { return __vector_as_bytebuffer(4, 1); }
+  public ByteBuffer nameInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 4, 1); }
   public String version() { int o = __offset(6); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer versionAsByteBuffer() { return __vector_as_bytebuffer(6, 1); }
+  public ByteBuffer versionInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 6, 1); }
   public String server() { int o = __offset(8); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer serverAsByteBuffer() { return __vector_as_bytebuffer(8, 1); }
+  public ByteBuffer serverInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 8, 1); }
   public String description() { int o = __offset(10); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer descriptionAsByteBuffer() { return __vector_as_bytebuffer(10, 1); }
+  public ByteBuffer descriptionInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 10, 1); }
   public IOMetadata inputs(int j) { return inputs(new IOMetadata(), j); }
   public IOMetadata inputs(IOMetadata obj, int j) { int o = __offset(12); return o != 0 ? obj.__assign(__indirect(__vector(o) + j * 4), bb) : null; }
   public int inputsLength() { int o = __offset(12); return o != 0 ? __vector_len(o) : 0; }

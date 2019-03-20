@@ -18,9 +18,11 @@ public final class Tensor extends Table {
   public long shape(int j) { int o = __offset(6); return o != 0 ? bb.getLong(__vector(o) + j * 8) : 0; }
   public int shapeLength() { int o = __offset(6); return o != 0 ? __vector_len(o) : 0; }
   public ByteBuffer shapeAsByteBuffer() { return __vector_as_bytebuffer(6, 8); }
+  public ByteBuffer shapeInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 6, 8); }
   public int data(int j) { int o = __offset(8); return o != 0 ? bb.get(__vector(o) + j * 1) & 0xFF : 0; }
   public int dataLength() { int o = __offset(8); return o != 0 ? __vector_len(o) : 0; }
   public ByteBuffer dataAsByteBuffer() { return __vector_as_bytebuffer(8, 1); }
+  public ByteBuffer dataInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 8, 1); }
   public String stringVal(int j) { int o = __offset(10); return o != 0 ? __string(__vector(o) + j * 4) : null; }
   public int stringValLength() { int o = __offset(10); return o != 0 ? __vector_len(o) : 0; }
 

@@ -16,11 +16,14 @@ public final class IOMetadata extends Table {
 
   public String name() { int o = __offset(4); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer nameAsByteBuffer() { return __vector_as_bytebuffer(4, 1); }
+  public ByteBuffer nameInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 4, 1); }
   public String description() { int o = __offset(6); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer descriptionAsByteBuffer() { return __vector_as_bytebuffer(6, 1); }
+  public ByteBuffer descriptionInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 6, 1); }
   public long shape(int j) { int o = __offset(8); return o != 0 ? bb.getLong(__vector(o) + j * 8) : 0; }
   public int shapeLength() { int o = __offset(8); return o != 0 ? __vector_len(o) : 0; }
   public ByteBuffer shapeAsByteBuffer() { return __vector_as_bytebuffer(8, 8); }
+  public ByteBuffer shapeInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 8, 8); }
   public int type() { int o = __offset(10); return o != 0 ? bb.get(o + bb_pos) & 0xFF : 0; }
 
   public static int createIOMetadata(FlatBufferBuilder builder,

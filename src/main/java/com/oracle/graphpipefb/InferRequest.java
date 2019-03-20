@@ -16,6 +16,7 @@ public final class InferRequest extends Table {
 
   public String config() { int o = __offset(4); return o != 0 ? __string(o + bb_pos) : null; }
   public ByteBuffer configAsByteBuffer() { return __vector_as_bytebuffer(4, 1); }
+  public ByteBuffer configInByteBuffer(ByteBuffer _bb) { return __vector_in_bytebuffer(_bb, 4, 1); }
   public String inputNames(int j) { int o = __offset(6); return o != 0 ? __string(__vector(o) + j * 4) : null; }
   public int inputNamesLength() { int o = __offset(6); return o != 0 ? __vector_len(o) : 0; }
   public Tensor inputTensors(int j) { return inputTensors(new Tensor(), j); }
